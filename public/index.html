@@ -44,7 +44,7 @@
         <div class="panel-header">
           <div>
             <h2 class="panel-title">Connect Terminal</h2>
-            <p class="panel-sub">Login to trade, upgrade, and climb the board.</p>
+            <p class="panel-sub">Login to trade, upgrade, and climb the leaderboard.</p>
           </div>
           <div class="pill">
             callback <span class="kbd" id="callback-preview"></span>
@@ -546,96 +546,141 @@ function startCandles() {
   resize();
 
   // ============================
-  // TUNING KNOBS
+  // TUNING
   // ============================
-  const candleW = 18;      // large candles
-  const gap = 3;           // tight gap
+  const candleW = 18;
+  const gap = 3;
   const spacing = candleW + gap;
   const speed = 1.15;
 
-  // Fixed vertical scale to prevent global shifting/bobbing
   const minLevel = 0;
   const maxLevel = 100;
   const midLevel = (minLevel + maxLevel) / 2;
 
-  // Candle height variability
-  const baseStep = 5.0;
-  const stepVar = 4.5;
+  const baseStep = 4.8;
+  const stepVar = 3.8;
+  const meanRevert = 0.18;
 
-  // Mean reversion to keep the random walk inside the visible range
-  const meanRevert = 0.20; // higher = more centered
+  // Layout tuning
+  const volBandH = 120;
+  const chartTopPad = 96;      // lowered candle area so it doesn't go under ticker
+  const chartBottomGap = 8;    // much smaller gap above histogram
 
-  // Volume histogram tuning
-  const volBandH = 120;        // height of volume area
-  const volMaxScale = 1.0;     // normalized later
+  // Boundary behavior
+  const edgeBuffer = 10;
+  const hardPadding = 4;
+  const minBodyMove = 2.6;
 
   // Axis labels
-  const axisPadRight = 18;     // spacing from right edge
-  const axisLabelEvery = 10;   // ticks: 0,10,20,...
+  const axisPadRight = 18;
+  const axisLabelEvery = 10;
   const axisFont = '12px "JetBrains Mono", ui-monospace';
 
-  // ============================
-  // Helpers
-  // ============================
   const candles = [];
   let level = midLevel;
+  let axisPhase = 0;
 
-  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function clamp(v, a, b) {
+    return Math.max(a, Math.min(b, v));
+  }
 
   function maxCandles() {
     return Math.ceil(w / spacing) + 90;
   }
 
-  function yFor(value) {
-    const pad = 0.10;
-    const t = (value - minLevel) / (maxLevel - minLevel);
-    const tt = pad + t * (1 - pad * 2);
-    return h - tt * h;
+  function getChartTop() {
+    return chartTopPad;
   }
 
-  function addCandle() {
-    // direction bias based on distance from mid
-    const dist = (level - midLevel) / (maxLevel - minLevel);
-    const pUp = clamp(0.5 - dist * meanRevert, 0.18, 0.82);
+  function getChartBottom() {
+    return h - volBandH - chartBottomGap;
+  }
 
-    let dir = (Math.random() < pUp) ? +1 : -1;
+  function yFor(value) {
+    const top = getChartTop();
+    const bottom = getChartBottom();
+    const t = (value - minLevel) / (maxLevel - minLevel);
+    return bottom - t * (bottom - top);
+  }
+
+  function pickDirection(open) {
+    const dist = (open - midLevel) / (maxLevel - minLevel);
+    let pUp = clamp(0.5 - dist * meanRevert, 0.18, 0.82);
+    let dir = Math.random() < pUp ? 1 : -1;
+
+    if (open >= maxLevel - edgeBuffer && dir > 0) dir = -1;
+    if (open <= minLevel + edgeBuffer && dir < 0) dir = 1;
+
+    return dir;
+  }
+
+  function addCandle(xOverride) {
+    const open = level;
+    let dir = pickDirection(open);
 
     const step = baseStep + Math.random() * stepVar;
-    const bodyMove = step * (0.7 + Math.random() * 0.7);
+    let bodyMove = Math.max(minBodyMove, step * (0.65 + Math.random() * 0.65));
 
-    const open = level;
     let close = open + dir * bodyMove;
-    close = clamp(close, minLevel + 2, maxLevel - 2);
-    dir = (close >= open) ? +1 : -1;
 
-    const wick = step * (0.6 + Math.random() * 1.3);
+    // Flip instead of crushing against bounds
+    if (close > maxLevel - hardPadding) {
+      dir = -1;
+      close = open - bodyMove;
+    } else if (close < minLevel + hardPadding) {
+      dir = 1;
+      close = open + bodyMove;
+    }
+
+    close = clamp(close, minLevel + hardPadding, maxLevel - hardPadding);
+
+    // Keep bodies from becoming tiny near edges
+    if (Math.abs(close - open) < minBodyMove) {
+      close = open + dir * minBodyMove;
+      close = clamp(close, minLevel + hardPadding, maxLevel - hardPadding);
+
+      if (Math.abs(close - open) < minBodyMove * 0.75) {
+        dir *= -1;
+        close = open + dir * minBodyMove;
+        close = clamp(close, minLevel + hardPadding, maxLevel - hardPadding);
+      }
+    }
+
+    const wick = step * (0.55 + Math.random() * 1.1);
     let high = Math.max(open, close) + wick;
-    let low  = Math.min(open, close) - wick;
-    high = clamp(high, minLevel, maxLevel);
-    low  = clamp(low, minLevel, maxLevel);
+    let low = Math.min(open, close) - wick;
 
-    // volume based on movement size + randomness
+    high = clamp(high, minLevel + 1, maxLevel - 1);
+    low = clamp(low, minLevel + 1, maxLevel - 1);
+
     const moveSize = Math.abs(close - open);
-    const vol = (moveSize * (0.7 + Math.random() * 1.2)) + (Math.random() * 2);
+    const vol = (moveSize * (0.8 + Math.random() * 1.0)) + (Math.random() * 1.8);
 
     level = close;
 
     candles.push({
-      x: w + 40,
-      open, close, high, low,
-      up: dir > 0,
+      x: typeof xOverride === "number" ? xOverride : (w + 40),
+      open,
+      close,
+      high,
+      low,
+      up: close >= open,
       vol
     });
 
     while (candles.length > maxCandles()) candles.shift();
   }
 
-  // Seed
-  for (let i = 0; i < Math.max(50, maxCandles() - 10); i++) addCandle();
+  // Seed candles
+  candles.length = 0;
+  level = midLevel;
 
-  // ============================
-  // Drawing: grid + midline glow
-  // ============================
+  const seedCount = Math.max(60, maxCandles());
+  const startX = -80;
+  for (let i = 0; i < seedCount; i++) {
+    addCandle(startX + i * spacing);
+  }
+
   function drawGrid() {
     ctx.save();
     ctx.globalAlpha = 0.10;
@@ -644,10 +689,16 @@ function startCandles() {
 
     const step = 70;
     for (let x = 0; x < w; x += step) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
     }
     for (let y = 0; y < h; y += step) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
     }
     ctx.restore();
   }
@@ -656,7 +707,6 @@ function startCandles() {
     const yMid = yFor(midLevel);
 
     ctx.save();
-    // glow pass
     ctx.globalAlpha = 0.22;
     ctx.strokeStyle = "rgba(55,242,161,0.55)";
     ctx.lineWidth = 2;
@@ -667,7 +717,6 @@ function startCandles() {
     ctx.lineTo(w, yMid);
     ctx.stroke();
 
-    // crisp line pass
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 0.16;
     ctx.strokeStyle = "rgba(55,242,161,0.45)";
@@ -679,22 +728,15 @@ function startCandles() {
     ctx.restore();
   }
 
-  // ============================
-  // Drawing: right-side axis labels (fixed scale, "scrolling" effect)
-  // ============================
-  // We'll animate a small phase offset so it feels alive.
-  let axisPhase = 0;
-
   function drawAxisLabels() {
-    axisPhase += 0.35; // slow drift
-    const drift = Math.sin(axisPhase * 0.01) * 3; // tiny up/down drift in pixels (NOT chart scale)
+    axisPhase += 0.35;
+    const drift = Math.sin(axisPhase * 0.01) * 3;
 
     ctx.save();
     ctx.font = axisFont;
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
 
-    // faint axis background
     ctx.globalAlpha = 0.07;
     ctx.fillStyle = "rgba(0,0,0,0.75)";
     ctx.fillRect(w - 86, 0, 86, h);
@@ -702,7 +744,6 @@ function startCandles() {
     for (let v = minLevel; v <= maxLevel; v += axisLabelEvery) {
       const y = yFor(v) + drift;
 
-      // tick line
       ctx.globalAlpha = 0.10;
       ctx.strokeStyle = "rgba(55,242,161,0.35)";
       ctx.lineWidth = 1;
@@ -711,7 +752,6 @@ function startCandles() {
       ctx.lineTo(w - 78, y);
       ctx.stroke();
 
-      // label
       ctx.globalAlpha = 0.18;
       ctx.fillStyle = "rgba(232,255,245,0.75)";
       ctx.fillText(String(v).padStart(3, " "), w - axisPadRight, y);
@@ -720,13 +760,9 @@ function startCandles() {
     ctx.restore();
   }
 
-  // ============================
-  // Drawing: volume histogram
-  // ============================
   function drawVolume() {
     if (!candles.length) return;
 
-    // normalize volume against recent candles
     const N = Math.min(120, candles.length);
     let vmax = 0;
     for (let i = candles.length - N; i < candles.length; i++) {
@@ -737,27 +773,25 @@ function startCandles() {
     const baseY = h - 10;
     const topY = h - volBandH;
 
-    // subtle base band
     ctx.save();
+
     ctx.globalAlpha = 0.06;
     ctx.fillStyle = "rgba(0,0,0,0.8)";
     ctx.fillRect(0, topY, w, volBandH);
 
-    // draw bars aligned with candles
     for (const c of candles) {
       const t = c.vol / vmax;
       const barH = Math.max(2, t * (volBandH - 16));
-
       const x = c.x;
       const y = baseY - barH;
 
-      const col = c.up ? "rgba(34,197,94,0.38)" : "rgba(239,68,68,0.32)";
       ctx.globalAlpha = 1;
-      ctx.fillStyle = col;
+      ctx.fillStyle = c.up
+        ? "rgba(34,197,94,0.38)"
+        : "rgba(239,68,68,0.32)";
       ctx.fillRect(x, y, candleW, barH);
     }
 
-    // separator line
     ctx.globalAlpha = 0.10;
     ctx.strokeStyle = "rgba(55,242,161,0.28)";
     ctx.beginPath();
@@ -768,31 +802,14 @@ function startCandles() {
     ctx.restore();
   }
 
-  // ============================
-  // Frame
-  // ============================
-  function frame() {
-    ctx.clearRect(0, 0, w, h);
-
-    drawGrid();
-    drawMidline();
-    drawAxisLabels();
-    drawVolume();
-
-    // move
-    for (const c of candles) c.x -= speed;
-
-    // add new
-    const last = candles[candles.length - 1];
-    if (!last || last.x < w - spacing) addCandle();
-
-    // prune
-    while (candles.length && candles[0].x < -120) candles.shift();
-
-    // candles
+  function drawCandles() {
     for (const c of candles) {
-      const bodyColor = c.up ? "rgba(34,197,94,0.95)" : "rgba(239,68,68,0.95)";
-      const glowColor = c.up ? "rgba(34,197,94,0.18)" : "rgba(239,68,68,0.16)";
+      const bodyColor = c.up
+        ? "rgba(34,197,94,0.95)"
+        : "rgba(239,68,68,0.95)";
+      const glowColor = c.up
+        ? "rgba(34,197,94,0.18)"
+        : "rgba(239,68,68,0.16)";
 
       const yO = yFor(c.open);
       const yC = yFor(c.close);
@@ -801,10 +818,10 @@ function startCandles() {
 
       const top = Math.min(yO, yC);
       const bot = Math.max(yO, yC);
-      const bodyH = Math.max(3, bot - top);
+      const bodyH = Math.max(4, bot - top);
 
-      // wick
       ctx.save();
+
       ctx.strokeStyle = bodyColor;
       ctx.globalAlpha = 0.85;
       ctx.lineWidth = 2.2;
@@ -813,14 +830,12 @@ function startCandles() {
       ctx.lineTo(c.x + candleW / 2, yL);
       ctx.stroke();
 
-      // body + glow
       ctx.shadowColor = glowColor;
       ctx.shadowBlur = 16;
       ctx.fillStyle = bodyColor;
       ctx.globalAlpha = 0.92;
       ctx.fillRect(c.x, top, candleW, bodyH);
 
-      // outline
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 0.22;
       ctx.strokeStyle = "rgba(0,0,0,0.70)";
@@ -828,6 +843,26 @@ function startCandles() {
 
       ctx.restore();
     }
+  }
+
+  function frame() {
+    ctx.clearRect(0, 0, w, h);
+
+    drawGrid();
+    drawMidline();
+    drawAxisLabels();
+    drawVolume();
+
+    for (const c of candles) c.x -= speed;
+
+    const last = candles[candles.length - 1];
+    if (!last || (w + 40 - last.x) >= spacing) {
+      addCandle();
+    }
+
+    while (candles.length && candles[0].x < -120) candles.shift();
+
+    drawCandles();
 
     requestAnimationFrame(frame);
   }
@@ -924,6 +959,7 @@ function startTicker(){
 
   // Duplicate for seamless translateX(-50%) loop
   track.innerHTML = strip + strip;
+  track.style.animationDuration = "55s"; // <- slower (try 45s, 60s, 80s)
 }
 init();
 </script>

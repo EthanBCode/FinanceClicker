@@ -341,7 +341,7 @@ tbody tr:hover td{
   gap: 22px;
   padding-left: 14px;
   will-change: transform;
-  animation: tickerMove 102s linear infinite; /* scroll speed */
+  animation: tickerMove 52s linear infinite; /* scroll speed */
 }
 
 @keyframes tickerMove{
