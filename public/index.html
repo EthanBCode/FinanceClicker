@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Finance Clicker</title>
+  <meta name="description" content="Finance Clicker — terminal-styled stock clicker with upgrades + leaderboard." />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="icon" href="data:," />
+</head>
+<body>
+  <canvas id="bg"></canvas>
+  <div class="scanlines"></div>
+  <div class="vignette"></div>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo">$</div>
+        <div>
+          <h1>FINANCE CLICKER</h1>
+          <p>market:// sim • auth:// cognito • db:// dynamodb</p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div class="pill" id="env-pill">
+          <span class="dot" id="dot"></span>
+          <span id="env-text">disconnected</span>
+        </div>
+        <button class="btn danger hidden" id="logout-btn">logout</button>
+      </div>
+    </div>
+    <div class="ticker" aria-label="market ticker">
+      <div class="ticker-viewport">
+        <div class="ticker-track" id="ticker-track"></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="logged-out" class="grid">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Connect Terminal</h2>
+            <p class="panel-sub">Login to trade, upgrade, and climb the board.</p>
+          </div>
+          <div class="pill">
+            callback <span class="kbd" id="callback-preview"></span>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          <div class="mono muted">welcome@terminal:~$</div>
+          <h1 class="big-title terminal-title caret" id="title-anim"></h1>
+          <p class="muted" style="margin-top:10px; max-width: 64ch;">
+            Click to gain points. Buy upgrades to increase <span class="mono">ppc</span> (points per click)
+            and <span class="mono">pps</span> (points per second). Offline progress is credited on the next request.
+          </p>
+
+          <div class="hr"></div>
+
+          <div class="row">
+            <button class="btn" id="login-btn">connect / login</button>
+            <button class="btn secondary" id="learn-btn" type="button">how it works</button>
+          </div>
+
+          <div class="status" id="login-help" style="margin-top:14px;">
+            Cognito callback + logout URLs must match exactly (including trailing slash).
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Market Feed</h2>
+            <p class="panel-sub">visual-only background candles • gameplay uses AWS points</p>
+          </div>
+          <div class="pill">mode <span class="mono">SIM</span></div>
+        </div>
+        <div class="panel-body">
+          <div class="card">
+            <h4>Tip</h4>
+            <div class="small">
+              After deployment, add <span class="mono">https://yourdomain.com/</span> to Cognito callback and sign-out URLs.
+            </div>
+          </div>
+          <div class="hr"></div>
+          <div class="muted mono" style="font-size:12px;">
+            background chart is generated in-browser for aesthetics.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="logged-in" class="hidden">
+      <div class="grid">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Trader Console</h2>
+              <p class="panel-sub">execute_trade, buy upgrades, sync state</p>
+            </div>
+            <div class="row" style="gap:8px; justify-content:flex-end;">
+              <button class="btn secondary" id="refresh-btn">refresh</button>
+              <button class="btn" id="click-btn">execute_trade (+)</button>
+            </div>
+          </div>
+
+          <div class="panel-body">
+            <div class="row">
+              <div>
+                <div class="mono muted" style="font-size:12px;">signed_in_as</div>
+                <div style="font-weight:800; font-size:18px;" id="user-label">—</div>
+                <div class="mono muted" style="font-size:12px;" id="user-sub"></div>
+              </div>
+            </div>
+
+            <div class="hr"></div>
+
+            <div class="cards">
+              <div class="card">
+                <h4>points_total</h4>
+                <div class="value" id="points">0</div>
+                <div class="small" id="last-update">—</div>
+              </div>
+              <div class="card">
+                <h4>ppc</h4>
+                <div class="value" style="font-size:26px;" id="ppc">1</div>
+                <div class="small">points_per_click</div>
+              </div>
+              <div class="card">
+                <h4>pps</h4>
+                <div class="value" style="font-size:26px;"><span id="pps">0</span><span class="small">/sec</span></div>
+                <div class="small">idle_income_rate</div>
+              </div>
+            </div>
+
+            <div class="status" id="api-status">Ready.</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Upgrades</h2>
+              <p class="panel-sub">buy:// increases ppc / pps</p>
+            </div>
+            <div class="pill">shop <span class="mono">online</span></div>
+          </div>
+
+          <div class="panel-body">
+            <div class="card">
+              <div class="row" style="justify-content:space-between;">
+                <div>
+                  <div class="mono" style="font-weight:800;">cursor</div>
+                  <div class="small muted">+1 ppc</div>
+                </div>
+                <div class="mono muted">lvl <span id="lvl-cursor">0</span></div>
+              </div>
+              <div class="row" style="margin-top:10px; justify-content:space-between;">
+                <div class="mono muted">cost <span class="kbd" id="cost-cursor">—</span></div>
+                <button class="btn" id="buy-cursor">buy</button>
+              </div>
+            </div>
+
+            <div style="height:10px"></div>
+
+            <div class="card">
+              <div class="row" style="justify-content:space-between;">
+                <div>
+                  <div class="mono" style="font-weight:800;">generator</div>
+                  <div class="small muted">+2 pps</div>
+                </div>
+                <div class="mono muted">lvl <span id="lvl-generator">0</span></div>
+              </div>
+              <div class="row" style="margin-top:10px; justify-content:space-between;">
+                <div class="mono muted">cost <span class="kbd" id="cost-generator">—</span></div>
+                <button class="btn" id="buy-generator">buy</button>
+              </div>
+            </div>
+
+            <div class="status" id="shop-status">Idle credits on any request (state/click/buy).</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:16px"></div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title" style="font-size:20px;">Live Leaderboard</h2>
+            <p class="panel-sub">top traders by points</p>
+          </div>
+          <div class="pill" id="lb-pill">—</div>
+        </div>
+
+        <div class="panel-body">
+          <div class="tablewrap">
+            <table aria-label="leaderboard">
+              <thead>
+                <tr>
+                  <th style="width:64px;">#</th>
+                  <th>player</th>
+                  <th class="right">points</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboard-body">
+                <tr><td colspan="3" class="muted">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="status" id="lb-status">Not connected.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+/** ============================
+ * CONFIG (unchanged logic)
+ * ============================ */
+const cognito = {
+  domain: "https://us-east-2pe2kxra0n.auth.us-east-2.amazoncognito.com",
+  clientId: "1qrdb0a0f1r4lcgsh99l80ffbl",
+  scope: "openid email phone",
+};
+
+const apiBase = "https://2a0nwy7yia.execute-api.us-east-2.amazonaws.com/prod";
+const endpoints = {
+  click: "/click",
+  state: "/state",
+  buy: "/buy",
+  leaderboard: "/leaderboard",
+};
+
+const leaderboardPollMs = 4000;
+const idleTickMs = 1200;
+
+/** pricing (frontend display only; backend enforces truth) */
+const UPGRADES = {
+  cursor: { baseCost: 10, growth: 1.15 },
+  generator: { baseCost: 100, growth: 1.20 },
+};
+function nextCost(id, level){
+  const u = UPGRADES[id];
+  return Math.floor(u.baseCost * Math.pow(u.growth, level));
+}
+
+const $ = (id) => document.getElementById(id);
+function nowStamp(){ return new Date().toLocaleString(); }
+function redirectUri(){ return window.location.origin + "/"; }
+
+/** ============================
+ * AUTH (unchanged)
+ * ============================ */
+function base64UrlEncode(arrayBuffer) {
+  const bytes = new Uint8Array(arrayBuffer);
+  let str = "";
+  for (const b of bytes) str += String.fromCharCode(b);
+  const base64 = btoa(str);
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+function randomString(length = 64) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+  let out = "";
+  const rnd = new Uint32Array(length);
+  crypto.getRandomValues(rnd);
+  for (let i = 0; i < length; i++) out += chars[rnd[i] % chars.length];
+  return out;
+}
+async function sha256(str) {
+  const data = new TextEncoder().encode(str);
+  return crypto.subtle.digest("SHA-256", data);
+}
+async function pkceChallenge(verifier) {
+  const hashed = await sha256(verifier);
+  return base64UrlEncode(hashed);
+}
+function getParams() {
+  const url = new URL(window.location.href);
+  const out = {};
+  url.searchParams.forEach((v, k) => out[k] = v);
+  return out;
+}
+function cleanUrl() {
+  const url = new URL(window.location.href);
+  ["code","state","error","error_description"].forEach(k => url.searchParams.delete(k));
+  window.history.replaceState({}, document.title, url.toString());
+}
+const storage = {
+  get accessToken(){ return sessionStorage.getItem("access_token"); },
+  set accessToken(v){ sessionStorage.setItem("access_token", v); },
+  get verifier(){ return sessionStorage.getItem("pkce_verifier"); },
+  set verifier(v){ sessionStorage.setItem("pkce_verifier", v); },
+  clear(){
+    ["access_token","id_token","refresh_token","pkce_verifier","oauth_state"].forEach(k => sessionStorage.removeItem(k));
+  }
+};
+async function startLogin() {
+  const verifier = randomString(96);
+  storage.verifier = verifier;
+  const challenge = await pkceChallenge(verifier);
+
+  const authUrl = new URL(cognito.domain + "/login");
+  authUrl.searchParams.set("client_id", cognito.clientId);
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("scope", cognito.scope);
+  authUrl.searchParams.set("redirect_uri", redirectUri());
+  authUrl.searchParams.set("code_challenge", challenge);
+  authUrl.searchParams.set("code_challenge_method", "S256");
+
+  const state = randomString(24);
+  sessionStorage.setItem("oauth_state", state);
+  authUrl.searchParams.set("state", state);
+
+  window.location.href = authUrl.toString();
+}
+async function exchangeCodeForTokens(code) {
+  const verifier = storage.verifier;
+  if (!verifier) throw new Error("Missing PKCE verifier (try logging in again).");
+
+  const expected = sessionStorage.getItem("oauth_state");
+  const params = getParams();
+  if (params.state && expected && params.state !== expected) throw new Error("State mismatch.");
+
+  const body = new URLSearchParams();
+  body.set("grant_type", "authorization_code");
+  body.set("client_id", cognito.clientId);
+  body.set("code", code);
+  body.set("redirect_uri", redirectUri());
+  body.set("code_verifier", verifier);
+
+  const res = await fetch(cognito.domain + "/oauth2/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body
+  });
+
+  const text = await res.text();
+  let data; try { data = JSON.parse(text); } catch { data = { raw: text }; }
+  if (!res.ok) throw new Error(data.error_description || data.error || text);
+  if (!data.access_token) throw new Error("No access_token returned.");
+  storage.accessToken = data.access_token;
+}
+function logout() {
+  storage.clear();
+  const url = new URL(cognito.domain + "/logout");
+  url.searchParams.set("client_id", cognito.clientId);
+  url.searchParams.set("logout_uri", redirectUri());
+  window.location.href = url.toString();
+}
+
+/** ============================
+ * API (unchanged)
+ * ============================ */
+function authHeader() {
+  const t = storage.accessToken;
+  return t ? { "Authorization": "Bearer " + t } : {};
+}
+async function apiFetch(path, opts = {}) {
+  if (!path) throw new Error("Frontend misconfigured: endpoint missing.");
+  const url = apiBase.replace(/\/+$/,"") + path;
+
+  const res = await fetch(url, {
+    ...opts,
+    headers: { "Content-Type": "application/json", ...(opts.headers||{}), ...authHeader() }
+  });
+
+  const text = await res.text();
+  let data; try { data = JSON.parse(text); } catch { data = { raw: text }; }
+  if (!res.ok) throw new Error(data.message || data.error || data.raw || text || ("HTTP " + res.status));
+  return data;
+}
+const clickOnce = () => apiFetch(endpoints.click, { method: "POST" });
+const getState = () => apiFetch(endpoints.state, { method: "GET" });
+const buyUpgrade = (upgradeId) => apiFetch(endpoints.buy, { method: "POST", body: JSON.stringify({ upgradeId }) });
+const getLeaderboard = () => apiFetch(endpoints.leaderboard, { method: "GET" });
+
+/** ============================
+ * UI glue (unchanged)
+ * ============================ */
+let leaderboardTimer = null;
+let idleTimer = null;
+
+function setEnv(connected){
+  $("env-text").textContent = connected ? "connected" : "disconnected";
+  $("dot").style.background = connected ? "rgba(55,242,161,0.95)" : "rgba(55,242,161,0.30)";
+  $("logout-btn").classList.toggle("hidden", !connected);
+}
+function setStatus(ok, msg){
+  const el = $("api-status");
+  el.classList.toggle("err", !ok);
+  el.textContent = msg;
+}
+function setLbStatus(ok, msg){
+  const el = $("lb-status");
+  el.classList.toggle("err", !ok);
+  el.textContent = msg;
+}
+function showLoggedIn(){
+  $("logged-out").classList.add("hidden");
+  $("logged-in").classList.remove("hidden");
+  setEnv(true);
+}
+function showLoggedOut(){
+  $("logged-in").classList.add("hidden");
+  $("logged-out").classList.remove("hidden");
+  setEnv(false);
+  $("leaderboard-body").innerHTML = `<tr><td colspan="3" class="muted">Sign in to load the leaderboard.</td></tr>`;
+}
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[c]));
+}
+function renderLeaderboard(items){
+  if (!Array.isArray(items)){
+    $("leaderboard-body").innerHTML = `<tr><td colspan="3" class="muted">Unexpected format.</td></tr>`;
+    return;
+  }
+  const rows = items.slice(0, 50).map((x,i)=>{
+    const name = x.name ?? "unknown";
+    const pts = Number(x.points ?? 0);
+    return `<tr>
+      <td class="muted">${i+1}</td>
+      <td><b>${escapeHtml(name)}</b></td>
+      <td class="right">${Number.isFinite(pts)?pts:0}</td>
+    </tr>`;
+  }).join("");
+  $("leaderboard-body").innerHTML = rows || `<tr><td colspan="3" class="muted">No scores yet.</td></tr>`;
+}
+function renderState(state){
+  $("user-label").textContent = state.name || "trader";
+  $("user-sub").textContent = "";
+  $("points").textContent = Number(state.money ?? 0);
+  $("ppc").textContent = Number(state.ppc ?? 1);
+  $("pps").textContent = Number(state.pps ?? 0);
+  $("last-update").textContent = "last_sync: " + nowStamp();
+
+  const upgrades = state.upgrades || {};
+  const lvlCursor = Number(upgrades.cursor ?? 0);
+  const lvlGen = Number(upgrades.generator ?? 0);
+  $("lvl-cursor").textContent = lvlCursor;
+  $("lvl-generator").textContent = lvlGen;
+  $("cost-cursor").textContent = nextCost("cursor", lvlCursor);
+  $("cost-generator").textContent = nextCost("generator", lvlGen);
+
+  const money = Number(state.money ?? 0);
+  const canCursor = money >= nextCost("cursor", lvlCursor);
+  const canGen = money >= nextCost("generator", lvlGen);
+  $("buy-cursor").disabled = !canCursor;
+  $("buy-generator").disabled = !canGen;
+}
+async function refreshLeaderboard(){
+  try{
+    setLbStatus(true, "leaderboard:// loading…");
+    const data = await getLeaderboard();
+    renderLeaderboard(data);
+    $("lb-pill").textContent = "updated " + new Date().toLocaleTimeString();
+    setLbStatus(true, "leaderboard:// live");
+  }catch(e){
+    setLbStatus(false, "leaderboard:// error: " + e.message);
+  }
+}
+async function refreshState(){
+  try{
+    const state = await getState();
+    renderState(state);
+  }catch(e){
+    setStatus(false, "state:// error: " + e.message);
+  }
+}
+async function doClick(){
+  try{
+    $("click-btn").disabled = true;
+    setStatus(true, "trade:// executing…");
+    const state = await clickOnce();
+    renderState(state);
+    setStatus(true, `trade:// ok (idle +${state?.gained?.idle ?? 0}, click +${state?.gained?.click ?? 1})`);
+    await refreshLeaderboard();
+  }catch(e){
+    setStatus(false, "trade:// failed: " + e.message);
+  }finally{
+    $("click-btn").disabled = false;
+  }
+}
+async function doBuy(upgradeId){
+  try{
+    setStatus(true, `buy://${upgradeId} pending…`);
+    const state = await buyUpgrade(upgradeId);
+    renderState(state);
+    setStatus(true, `buy://${upgradeId} ok`);
+    await refreshLeaderboard();
+  }catch(e){
+    setStatus(false, "buy:// failed: " + e.message);
+  }
+}
+
+/** Title “decode” animation */
+function animateTitle(){
+  const target = "THE MARKET NEVER SLEEPS.";
+  const el = $("title-anim");
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%*_-+=:;./";
+  let i = 0;
+  function tick(){
+    const settled = target.slice(0, i);
+    const remain = target.slice(i);
+    const n = Math.min(12, remain.length);
+    let scr = "";
+    for (let k=0;k<n;k++) scr += chars[(Math.random()*chars.length)|0];
+    el.textContent = settled + scr;
+    if (i < target.length){
+      i += Math.random() < 0.35 ? 0 : 1;
+      setTimeout(tick, 35 + Math.random()*35);
+    }else{
+      el.textContent = target;
+    }
+  }
+  tick();
+}
+
+/** ============================
+ * FIXED candlestick background (no stretching)
+ * Key: smooth scale rather than min/max snap
+ * ============================ */
+function startCandles() {
+  const canvas = $("bg");
+  const ctx = canvas.getContext("2d");
+
+  let w = 0, h = 0;
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+
+  function resize() {
+    w = window.innerWidth;
+    h = window.innerHeight;
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  // ============================
+  // TUNING KNOBS
+  // ============================
+  const candleW = 18;      // large candles
+  const gap = 3;           // tight gap
+  const spacing = candleW + gap;
+  const speed = 1.15;
+
+  // Fixed vertical scale to prevent global shifting/bobbing
+  const minLevel = 0;
+  const maxLevel = 100;
+  const midLevel = (minLevel + maxLevel) / 2;
+
+  // Candle height variability
+  const baseStep = 5.0;
+  const stepVar = 4.5;
+
+  // Mean reversion to keep the random walk inside the visible range
+  const meanRevert = 0.20; // higher = more centered
+
+  // Volume histogram tuning
+  const volBandH = 120;        // height of volume area
+  const volMaxScale = 1.0;     // normalized later
+
+  // Axis labels
+  const axisPadRight = 18;     // spacing from right edge
+  const axisLabelEvery = 10;   // ticks: 0,10,20,...
+  const axisFont = '12px "JetBrains Mono", ui-monospace';
+
+  // ============================
+  // Helpers
+  // ============================
+  const candles = [];
+  let level = midLevel;
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  function maxCandles() {
+    return Math.ceil(w / spacing) + 90;
+  }
+
+  function yFor(value) {
+    const pad = 0.10;
+    const t = (value - minLevel) / (maxLevel - minLevel);
+    const tt = pad + t * (1 - pad * 2);
+    return h - tt * h;
+  }
+
+  function addCandle() {
+    // direction bias based on distance from mid
+    const dist = (level - midLevel) / (maxLevel - minLevel);
+    const pUp = clamp(0.5 - dist * meanRevert, 0.18, 0.82);
+
+    let dir = (Math.random() < pUp) ? +1 : -1;
+
+    const step = baseStep + Math.random() * stepVar;
+    const bodyMove = step * (0.7 + Math.random() * 0.7);
+
+    const open = level;
+    let close = open + dir * bodyMove;
+    close = clamp(close, minLevel + 2, maxLevel - 2);
+    dir = (close >= open) ? +1 : -1;
+
+    const wick = step * (0.6 + Math.random() * 1.3);
+    let high = Math.max(open, close) + wick;
+    let low  = Math.min(open, close) - wick;
+    high = clamp(high, minLevel, maxLevel);
+    low  = clamp(low, minLevel, maxLevel);
+
+    // volume based on movement size + randomness
+    const moveSize = Math.abs(close - open);
+    const vol = (moveSize * (0.7 + Math.random() * 1.2)) + (Math.random() * 2);
+
+    level = close;
+
+    candles.push({
+      x: w + 40,
+      open, close, high, low,
+      up: dir > 0,
+      vol
+    });
+
+    while (candles.length > maxCandles()) candles.shift();
+  }
+
+  // Seed
+  for (let i = 0; i < Math.max(50, maxCandles() - 10); i++) addCandle();
+
+  // ============================
+  // Drawing: grid + midline glow
+  // ============================
+  function drawGrid() {
+    ctx.save();
+    ctx.globalAlpha = 0.10;
+    ctx.strokeStyle = "rgba(55,242,161,0.18)";
+    ctx.lineWidth = 1;
+
+    const step = 70;
+    for (let x = 0; x < w; x += step) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    }
+    for (let y = 0; y < h; y += step) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawMidline() {
+    const yMid = yFor(midLevel);
+
+    ctx.save();
+    // glow pass
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = "rgba(55,242,161,0.55)";
+    ctx.lineWidth = 2;
+    ctx.shadowColor = "rgba(55,242,161,0.35)";
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.moveTo(0, yMid);
+    ctx.lineTo(w, yMid);
+    ctx.stroke();
+
+    // crisp line pass
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 0.16;
+    ctx.strokeStyle = "rgba(55,242,161,0.45)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, yMid);
+    ctx.lineTo(w, yMid);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ============================
+  // Drawing: right-side axis labels (fixed scale, "scrolling" effect)
+  // ============================
+  // We'll animate a small phase offset so it feels alive.
+  let axisPhase = 0;
+
+  function drawAxisLabels() {
+    axisPhase += 0.35; // slow drift
+    const drift = Math.sin(axisPhase * 0.01) * 3; // tiny up/down drift in pixels (NOT chart scale)
+
+    ctx.save();
+    ctx.font = axisFont;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+
+    // faint axis background
+    ctx.globalAlpha = 0.07;
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(w - 86, 0, 86, h);
+
+    for (let v = minLevel; v <= maxLevel; v += axisLabelEvery) {
+      const y = yFor(v) + drift;
+
+      // tick line
+      ctx.globalAlpha = 0.10;
+      ctx.strokeStyle = "rgba(55,242,161,0.35)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(w - 86, y);
+      ctx.lineTo(w - 78, y);
+      ctx.stroke();
+
+      // label
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = "rgba(232,255,245,0.75)";
+      ctx.fillText(String(v).padStart(3, " "), w - axisPadRight, y);
+    }
+
+    ctx.restore();
+  }
+
+  // ============================
+  // Drawing: volume histogram
+  // ============================
+  function drawVolume() {
+    if (!candles.length) return;
+
+    // normalize volume against recent candles
+    const N = Math.min(120, candles.length);
+    let vmax = 0;
+    for (let i = candles.length - N; i < candles.length; i++) {
+      vmax = Math.max(vmax, candles[i].vol);
+    }
+    vmax = Math.max(1, vmax);
+
+    const baseY = h - 10;
+    const topY = h - volBandH;
+
+    // subtle base band
+    ctx.save();
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = "rgba(0,0,0,0.8)";
+    ctx.fillRect(0, topY, w, volBandH);
+
+    // draw bars aligned with candles
+    for (const c of candles) {
+      const t = c.vol / vmax;
+      const barH = Math.max(2, t * (volBandH - 16));
+
+      const x = c.x;
+      const y = baseY - barH;
+
+      const col = c.up ? "rgba(34,197,94,0.38)" : "rgba(239,68,68,0.32)";
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = col;
+      ctx.fillRect(x, y, candleW, barH);
+    }
+
+    // separator line
+    ctx.globalAlpha = 0.10;
+    ctx.strokeStyle = "rgba(55,242,161,0.28)";
+    ctx.beginPath();
+    ctx.moveTo(0, topY);
+    ctx.lineTo(w, topY);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // ============================
+  // Frame
+  // ============================
+  function frame() {
+    ctx.clearRect(0, 0, w, h);
+
+    drawGrid();
+    drawMidline();
+    drawAxisLabels();
+    drawVolume();
+
+    // move
+    for (const c of candles) c.x -= speed;
+
+    // add new
+    const last = candles[candles.length - 1];
+    if (!last || last.x < w - spacing) addCandle();
+
+    // prune
+    while (candles.length && candles[0].x < -120) candles.shift();
+
+    // candles
+    for (const c of candles) {
+      const bodyColor = c.up ? "rgba(34,197,94,0.95)" : "rgba(239,68,68,0.95)";
+      const glowColor = c.up ? "rgba(34,197,94,0.18)" : "rgba(239,68,68,0.16)";
+
+      const yO = yFor(c.open);
+      const yC = yFor(c.close);
+      const yH = yFor(c.high);
+      const yL = yFor(c.low);
+
+      const top = Math.min(yO, yC);
+      const bot = Math.max(yO, yC);
+      const bodyH = Math.max(3, bot - top);
+
+      // wick
+      ctx.save();
+      ctx.strokeStyle = bodyColor;
+      ctx.globalAlpha = 0.85;
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(c.x + candleW / 2, yH);
+      ctx.lineTo(c.x + candleW / 2, yL);
+      ctx.stroke();
+
+      // body + glow
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = bodyColor;
+      ctx.globalAlpha = 0.92;
+      ctx.fillRect(c.x, top, candleW, bodyH);
+
+      // outline
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 0.22;
+      ctx.strokeStyle = "rgba(0,0,0,0.70)";
+      ctx.strokeRect(c.x, top, candleW, bodyH);
+
+      ctx.restore();
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  frame();
+}
+/** Boot */
+async function init(){
+  $("callback-preview").textContent = redirectUri();
+  animateTitle();
+  startCandles();
+  startTicker();
+
+  $("login-btn").addEventListener("click", startLogin);
+  $("logout-btn").addEventListener("click", logout);
+  $("refresh-btn").addEventListener("click", async () => {
+    setStatus(true, "state:// refreshing…");
+    await refreshState();
+    await refreshLeaderboard();
+    setStatus(true, "state:// ok");
+  });
+  $("click-btn").addEventListener("click", doClick);
+  $("buy-cursor").addEventListener("click", () => doBuy("cursor"));
+  $("buy-generator").addEventListener("click", () => doBuy("generator"));
+  $("learn-btn").addEventListener("click", () => alert("Login with Cognito. Click/buy upgrades. Leaderboard updates live."));
+
+  const params = getParams();
+  if (params.error){
+    showLoggedOut();
+    $("login-help").classList.add("err");
+    $("login-help").textContent = "login:// error: " + (params.error_description || params.error);
+    cleanUrl();
+    return;
+  }
+
+  if (params.code){
+    try{
+      await exchangeCodeForTokens(params.code);
+      cleanUrl();
+    }catch(e){
+      showLoggedOut();
+      $("login-help").classList.add("err");
+      $("login-help").textContent = "login:// failed: " + e.message;
+      cleanUrl();
+      return;
+    }
+  }
+
+  if (storage.accessToken){
+    showLoggedIn();
+    setStatus(true, "state:// syncing…");
+    await refreshState();
+    await refreshLeaderboard();
+    setStatus(true, "ready:// ok");
+
+    if (leaderboardTimer) clearInterval(leaderboardTimer);
+    leaderboardTimer = setInterval(refreshLeaderboard, leaderboardPollMs);
+
+    if (idleTimer) clearInterval(idleTimer);
+    idleTimer = setInterval(refreshState, idleTickMs);
+  } else {
+    showLoggedOut();
+  }
+}
+function startTicker(){
+  const track = $("ticker-track");
+  if (!track) return;
+
+  const symbols = ["SPY","QQQ","AAPL","TSLA","NVDA","MSFT","AMZN","META","BTC","ETH","XAU","EURUSD","USDJPY"];
+
+  function oneItem(){
+    const sym = symbols[(Math.random()*symbols.length)|0];
+    const pct = (Math.random()*3.0 - 1.5); // -1.5%..+1.5%
+    const up = pct >= 0;
+    const cls = up ? "ticker-up" : "ticker-down";
+    const arrow = up ? "▲" : "▼";
+    const sign = up ? "+" : "";
+    const price = (80 + Math.random()*900).toFixed(2);
+
+    return `
+      <div class="ticker-item">
+        <span class="ticker-dot"></span>
+        <span class="ticker-sym">${sym}</span>
+        <span class="${cls}">${arrow} ${sign}${pct.toFixed(2)}%</span>
+        <span class="ticker-sep">•</span>
+        <span class="muted">${price}</span>
+      </div>
+    `;
+  }
+
+  // Build enough items to cover > 2x screen width (safe loop)
+  let strip = "";
+  for (let i=0;i<34;i++) strip += oneItem();
+
+  // Duplicate for seamless translateX(-50%) loop
+  track.innerHTML = strip + strip;
+}
+init();
+</script>
+</body>
+</html>
