@@ -222,7 +222,7 @@
 
 <script>
 /** ============================
- * CONFIG (unchanged logic)
+ * CONFIG
  * ============================ */
 const cognito = {
   domain: "https://us-east-2pe2kxra0n.auth.us-east-2.amazoncognito.com",
@@ -256,7 +256,7 @@ function nowStamp(){ return new Date().toLocaleString(); }
 function redirectUri(){ return window.location.origin + "/"; }
 
 /** ============================
- * AUTH (unchanged)
+ * AUTH (PKCE)
  * ============================ */
 function base64UrlEncode(arrayBuffer) {
   const bytes = new Uint8Array(arrayBuffer);
@@ -292,15 +292,24 @@ function cleanUrl() {
   ["code","state","error","error_description"].forEach(k => url.searchParams.delete(k));
   window.history.replaceState({}, document.title, url.toString());
 }
+
 const storage = {
   get accessToken(){ return sessionStorage.getItem("access_token"); },
   set accessToken(v){ sessionStorage.setItem("access_token", v); },
+
+  get idToken(){ return sessionStorage.getItem("id_token"); },
+  set idToken(v){ sessionStorage.setItem("id_token", v); },
+
   get verifier(){ return sessionStorage.getItem("pkce_verifier"); },
   set verifier(v){ sessionStorage.setItem("pkce_verifier", v); },
+
   clear(){
-    ["access_token","id_token","refresh_token","pkce_verifier","oauth_state"].forEach(k => sessionStorage.removeItem(k));
+    ["access_token","id_token","refresh_token","pkce_verifier","oauth_state"].forEach(k =>
+      sessionStorage.removeItem(k)
+    );
   }
 };
+
 async function startLogin() {
   const verifier = randomString(96);
   storage.verifier = verifier;
@@ -320,6 +329,7 @@ async function startLogin() {
 
   window.location.href = authUrl.toString();
 }
+
 async function exchangeCodeForTokens(code) {
   const verifier = storage.verifier;
   if (!verifier) throw new Error("Missing PKCE verifier (try logging in again).");
@@ -343,10 +353,19 @@ async function exchangeCodeForTokens(code) {
 
   const text = await res.text();
   let data; try { data = JSON.parse(text); } catch { data = { raw: text }; }
-  if (!res.ok) throw new Error(data.error_description || data.error || text);
-  if (!data.access_token) throw new Error("No access_token returned.");
-  storage.accessToken = data.access_token;
+  if (!res.ok) throw new Error(data.error_description || data.error || data.raw || text);
+
+  // Store tokens (REST API Cognito authorizer commonly works best with id_token)
+  if (data.access_token) storage.accessToken = data.access_token;
+  if (data.id_token) storage.idToken = data.id_token;
+  if (data.refresh_token) sessionStorage.setItem("refresh_token", data.refresh_token);
+
+  if (!storage.idToken) {
+    // fallback if your authorizer accepts access token only
+    if (!storage.accessToken) throw new Error("No tokens returned from Cognito.");
+  }
 }
+
 function logout() {
   storage.clear();
   const url = new URL(cognito.domain + "/logout");
@@ -356,12 +375,13 @@ function logout() {
 }
 
 /** ============================
- * API (unchanged)
+ * API
  * ============================ */
 function authHeader() {
-  const t = storage.accessToken;
-  return t ? { "Authorization": "Bearer " + t } : {};
+  const t = storage.idToken || storage.accessToken;
+  return t ? { "Authorization": t } : {};
 }
+
 async function apiFetch(path, opts = {}) {
   if (!path) throw new Error("Frontend misconfigured: endpoint missing.");
   const url = apiBase.replace(/\/+$/,"") + path;
@@ -376,13 +396,14 @@ async function apiFetch(path, opts = {}) {
   if (!res.ok) throw new Error(data.message || data.error || data.raw || text || ("HTTP " + res.status));
   return data;
 }
+
 const clickOnce = () => apiFetch(endpoints.click, { method: "POST" });
 const getState = () => apiFetch(endpoints.state, { method: "GET" });
 const buyUpgrade = (upgradeId) => apiFetch(endpoints.buy, { method: "POST", body: JSON.stringify({ upgradeId }) });
 const getLeaderboard = () => apiFetch(endpoints.leaderboard, { method: "GET" });
 
 /** ============================
- * UI glue (unchanged)
+ * UI glue
  * ============================ */
 let leaderboardTimer = null;
 let idleTimer = null;
@@ -522,10 +543,7 @@ function animateTitle(){
   tick();
 }
 
-/** ============================
- * FIXED candlestick background (no stretching)
- * Key: smooth scale rather than min/max snap
- * ============================ */
+/** Candles (your current tuned version) */
 function startCandles() {
   const canvas = $("bg");
   const ctx = canvas.getContext("2d");
@@ -545,9 +563,6 @@ function startCandles() {
   window.addEventListener("resize", resize);
   resize();
 
-  // ============================
-  // TUNING
-  // ============================
   const candleW = 18;
   const gap = 3;
   const spacing = candleW + gap;
@@ -561,17 +576,14 @@ function startCandles() {
   const stepVar = 3.8;
   const meanRevert = 0.18;
 
-  // Layout tuning
   const volBandH = 120;
-  const chartTopPad = 96;      // lowered candle area so it doesn't go under ticker
-  const chartBottomGap = 8;    // much smaller gap above histogram
+  const chartTopPad = 96;
+  const chartBottomGap = 8;
 
-  // Boundary behavior
   const edgeBuffer = 10;
   const hardPadding = 4;
   const minBodyMove = 2.6;
 
-  // Axis labels
   const axisPadRight = 18;
   const axisLabelEvery = 10;
   const axisFont = '12px "JetBrains Mono", ui-monospace';
@@ -580,65 +592,40 @@ function startCandles() {
   let level = midLevel;
   let axisPhase = 0;
 
-  function clamp(v, a, b) {
-    return Math.max(a, Math.min(b, v));
-  }
-
-  function maxCandles() {
-    return Math.ceil(w / spacing) + 90;
-  }
-
-  function getChartTop() {
-    return chartTopPad;
-  }
-
-  function getChartBottom() {
-    return h - volBandH - chartBottomGap;
-  }
-
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function maxCandles() { return Math.ceil(w / spacing) + 90; }
+  function getChartTop() { return chartTopPad; }
+  function getChartBottom() { return h - volBandH - chartBottomGap; }
   function yFor(value) {
     const top = getChartTop();
     const bottom = getChartBottom();
     const t = (value - minLevel) / (maxLevel - minLevel);
     return bottom - t * (bottom - top);
   }
-
   function pickDirection(open) {
     const dist = (open - midLevel) / (maxLevel - minLevel);
     let pUp = clamp(0.5 - dist * meanRevert, 0.18, 0.82);
     let dir = Math.random() < pUp ? 1 : -1;
-
     if (open >= maxLevel - edgeBuffer && dir > 0) dir = -1;
     if (open <= minLevel + edgeBuffer && dir < 0) dir = 1;
-
     return dir;
   }
-
   function addCandle(xOverride) {
     const open = level;
     let dir = pickDirection(open);
 
     const step = baseStep + Math.random() * stepVar;
     let bodyMove = Math.max(minBodyMove, step * (0.65 + Math.random() * 0.65));
-
     let close = open + dir * bodyMove;
 
-    // Flip instead of crushing against bounds
-    if (close > maxLevel - hardPadding) {
-      dir = -1;
-      close = open - bodyMove;
-    } else if (close < minLevel + hardPadding) {
-      dir = 1;
-      close = open + bodyMove;
-    }
+    if (close > maxLevel - hardPadding) { dir = -1; close = open - bodyMove; }
+    else if (close < minLevel + hardPadding) { dir = 1; close = open + bodyMove; }
 
     close = clamp(close, minLevel + hardPadding, maxLevel - hardPadding);
 
-    // Keep bodies from becoming tiny near edges
     if (Math.abs(close - open) < minBodyMove) {
       close = open + dir * minBodyMove;
       close = clamp(close, minLevel + hardPadding, maxLevel - hardPadding);
-
       if (Math.abs(close - open) < minBodyMove * 0.75) {
         dir *= -1;
         close = open + dir * minBodyMove;
@@ -649,7 +636,6 @@ function startCandles() {
     const wick = step * (0.55 + Math.random() * 1.1);
     let high = Math.max(open, close) + wick;
     let low = Math.min(open, close) - wick;
-
     high = clamp(high, minLevel + 1, maxLevel - 1);
     low = clamp(low, minLevel + 1, maxLevel - 1);
 
@@ -660,10 +646,7 @@ function startCandles() {
 
     candles.push({
       x: typeof xOverride === "number" ? xOverride : (w + 40),
-      open,
-      close,
-      high,
-      low,
+      open, close, high, low,
       up: close >= open,
       vol
     });
@@ -671,60 +654,38 @@ function startCandles() {
     while (candles.length > maxCandles()) candles.shift();
   }
 
-  // Seed candles
   candles.length = 0;
   level = midLevel;
-
   const seedCount = Math.max(60, maxCandles());
   const startX = -80;
-  for (let i = 0; i < seedCount; i++) {
-    addCandle(startX + i * spacing);
-  }
+  for (let i = 0; i < seedCount; i++) addCandle(startX + i * spacing);
 
   function drawGrid() {
     ctx.save();
     ctx.globalAlpha = 0.10;
     ctx.strokeStyle = "rgba(55,242,161,0.18)";
     ctx.lineWidth = 1;
-
     const step = 70;
-    for (let x = 0; x < w; x += step) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
-    }
-    for (let y = 0; y < h; y += step) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
-    }
+    for (let x = 0; x < w; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+    for (let y = 0; y < h; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
     ctx.restore();
   }
 
   function drawMidline() {
     const yMid = yFor(midLevel);
-
     ctx.save();
     ctx.globalAlpha = 0.22;
     ctx.strokeStyle = "rgba(55,242,161,0.55)";
     ctx.lineWidth = 2;
     ctx.shadowColor = "rgba(55,242,161,0.35)";
     ctx.shadowBlur = 18;
-    ctx.beginPath();
-    ctx.moveTo(0, yMid);
-    ctx.lineTo(w, yMid);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, yMid); ctx.lineTo(w, yMid); ctx.stroke();
 
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 0.16;
     ctx.strokeStyle = "rgba(55,242,161,0.45)";
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, yMid);
-    ctx.lineTo(w, yMid);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, yMid); ctx.lineTo(w, yMid); ctx.stroke();
     ctx.restore();
   }
 
@@ -743,38 +704,29 @@ function startCandles() {
 
     for (let v = minLevel; v <= maxLevel; v += axisLabelEvery) {
       const y = yFor(v) + drift;
-
       ctx.globalAlpha = 0.10;
       ctx.strokeStyle = "rgba(55,242,161,0.35)";
       ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(w - 86, y);
-      ctx.lineTo(w - 78, y);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(w - 86, y); ctx.lineTo(w - 78, y); ctx.stroke();
 
       ctx.globalAlpha = 0.18;
       ctx.fillStyle = "rgba(232,255,245,0.75)";
       ctx.fillText(String(v).padStart(3, " "), w - axisPadRight, y);
     }
-
     ctx.restore();
   }
 
   function drawVolume() {
     if (!candles.length) return;
-
     const N = Math.min(120, candles.length);
     let vmax = 0;
-    for (let i = candles.length - N; i < candles.length; i++) {
-      vmax = Math.max(vmax, candles[i].vol);
-    }
+    for (let i = candles.length - N; i < candles.length; i++) vmax = Math.max(vmax, candles[i].vol);
     vmax = Math.max(1, vmax);
 
     const baseY = h - 10;
     const topY = h - volBandH;
 
     ctx.save();
-
     ctx.globalAlpha = 0.06;
     ctx.fillStyle = "rgba(0,0,0,0.8)";
     ctx.fillRect(0, topY, w, volBandH);
@@ -784,32 +736,21 @@ function startCandles() {
       const barH = Math.max(2, t * (volBandH - 16));
       const x = c.x;
       const y = baseY - barH;
-
       ctx.globalAlpha = 1;
-      ctx.fillStyle = c.up
-        ? "rgba(34,197,94,0.38)"
-        : "rgba(239,68,68,0.32)";
+      ctx.fillStyle = c.up ? "rgba(34,197,94,0.38)" : "rgba(239,68,68,0.32)";
       ctx.fillRect(x, y, candleW, barH);
     }
 
     ctx.globalAlpha = 0.10;
     ctx.strokeStyle = "rgba(55,242,161,0.28)";
-    ctx.beginPath();
-    ctx.moveTo(0, topY);
-    ctx.lineTo(w, topY);
-    ctx.stroke();
-
+    ctx.beginPath(); ctx.moveTo(0, topY); ctx.lineTo(w, topY); ctx.stroke();
     ctx.restore();
   }
 
   function drawCandles() {
     for (const c of candles) {
-      const bodyColor = c.up
-        ? "rgba(34,197,94,0.95)"
-        : "rgba(239,68,68,0.95)";
-      const glowColor = c.up
-        ? "rgba(34,197,94,0.18)"
-        : "rgba(239,68,68,0.16)";
+      const bodyColor = c.up ? "rgba(34,197,94,0.95)" : "rgba(239,68,68,0.95)";
+      const glowColor = c.up ? "rgba(34,197,94,0.18)" : "rgba(239,68,68,0.16)";
 
       const yO = yFor(c.open);
       const yC = yFor(c.close);
@@ -821,7 +762,6 @@ function startCandles() {
       const bodyH = Math.max(4, bot - top);
 
       ctx.save();
-
       ctx.strokeStyle = bodyColor;
       ctx.globalAlpha = 0.85;
       ctx.lineWidth = 2.2;
@@ -847,7 +787,6 @@ function startCandles() {
 
   function frame() {
     ctx.clearRect(0, 0, w, h);
-
     drawGrid();
     drawMidline();
     drawAxisLabels();
@@ -856,19 +795,16 @@ function startCandles() {
     for (const c of candles) c.x -= speed;
 
     const last = candles[candles.length - 1];
-    if (!last || (w + 40 - last.x) >= spacing) {
-      addCandle();
-    }
+    if (!last || (w + 40 - last.x) >= spacing) addCandle();
 
     while (candles.length && candles[0].x < -120) candles.shift();
 
     drawCandles();
-
     requestAnimationFrame(frame);
   }
-
   frame();
 }
+
 /** Boot */
 async function init(){
   $("callback-preview").textContent = redirectUri();
@@ -911,7 +847,8 @@ async function init(){
     }
   }
 
-  if (storage.accessToken){
+  // Consider "logged in" if we have at least one token stored
+  if (storage.idToken || storage.accessToken){
     showLoggedIn();
     setStatus(true, "state:// syncing…");
     await refreshState();
@@ -927,6 +864,7 @@ async function init(){
     showLoggedOut();
   }
 }
+
 function startTicker(){
   const track = $("ticker-track");
   if (!track) return;
@@ -935,7 +873,7 @@ function startTicker(){
 
   function oneItem(){
     const sym = symbols[(Math.random()*symbols.length)|0];
-    const pct = (Math.random()*3.0 - 1.5); // -1.5%..+1.5%
+    const pct = (Math.random()*3.0 - 1.5);
     const up = pct >= 0;
     const cls = up ? "ticker-up" : "ticker-down";
     const arrow = up ? "▲" : "▼";
@@ -953,14 +891,13 @@ function startTicker(){
     `;
   }
 
-  // Build enough items to cover > 2x screen width (safe loop)
   let strip = "";
   for (let i=0;i<34;i++) strip += oneItem();
 
-  // Duplicate for seamless translateX(-50%) loop
   track.innerHTML = strip + strip;
-  track.style.animationDuration = "55s"; // <- slower (try 45s, 60s, 80s)
+  track.style.animationDuration = "55s";
 }
+
 init();
 </script>
 </body>
