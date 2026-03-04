@@ -60,6 +60,7 @@ canvas#bg{
   position: sticky;
   top:0;
   z-index: 20;
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   background: rgba(0,0,0,.55);
   border-bottom: 1px solid rgba(40,255,170,0.12);
@@ -393,6 +394,11 @@ tbody tr:hover td{
   max-width: 90ch;
 }
 
+.docs-page .panel{
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
 .docs-content p{
   margin: 0 0 14px;
   color: rgba(232,255,245,0.9);
@@ -418,7 +424,7 @@ tbody tr:hover td{
 .terminal-line{
   position: absolute;
   top: 100%;
-  color: rgba(240, 255, 246, 0.9);
+  color: rgba(255, 255, 255, 0.5);
   font-family: var(--mono);
   white-space: nowrap;
   text-shadow: 0 0 8px rgba(90, 255, 160, 0.16);
