@@ -100,13 +100,17 @@
     "GET /prod/leaderboard 200 36ms",
   ];
 
-  function makeLine(){
+  function makeLine({ seed = false } = {}){
     const line = document.createElement("div");
+    const duration = 8 + Math.random() * 8;
+
     line.className = "terminal-line";
     line.textContent = snippets[(Math.random() * snippets.length) | 0];
     line.style.left = `${Math.random() * 100}%`;
-    line.style.animationDuration = `${8 + Math.random() * 8}s`;
-    line.style.animationDelay = `${Math.random() * 2}s`;
+    line.style.animationDuration = `${duration}s`;
+    line.style.animationDelay = seed
+      ? `${-(Math.random() * duration).toFixed(2)}s`
+      : `${(Math.random() * 2).toFixed(2)}s`;
     line.style.opacity = (0.46 + Math.random() * 0.12).toFixed(2);
     line.style.fontSize = `${11 + Math.random() * 4}px`;
     host.appendChild(line);
@@ -114,7 +118,7 @@
     line.addEventListener("animationend", () => line.remove());
   }
 
-  for (let i = 0; i < 36; i++) makeLine();
+  for (let i = 0; i < 36; i++) makeLine({ seed: true });
   setInterval(makeLine, 220);
 })();
 </script>
