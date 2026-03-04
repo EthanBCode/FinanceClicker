@@ -171,6 +171,22 @@
             <div class="card">
               <div class="row" style="justify-content:space-between;">
                 <div>
+                  <div class="mono" style="font-weight:800;">day trader</div>
+                  <div class="small muted">+1 pps</div>
+                </div>
+                <div class="mono muted">lvl <span id="lvl-dayTrader">0</span></div>
+              </div>
+              <div class="row" style="margin-top:10px; justify-content:space-between;">
+                <div class="mono muted">cost <span class="kbd" id="cost-dayTrader">—</span></div>
+                <button class="btn" id="buy-dayTrader">buy</button>
+              </div>
+            </div>
+
+            <div style="height:10px"></div>
+
+            <div class="card">
+              <div class="row" style="justify-content:space-between;">
+                <div>
                   <div class="mono" style="font-weight:800;">generator</div>
                   <div class="small muted">+2 pps</div>
                 </div>
@@ -182,7 +198,116 @@
               </div>
             </div>
 
-            <div class="status" id="shop-status">Idle credits on any request (state/click/buy).</div>
+            <div style="height:10px"></div>
+
+            <div class="card">
+              <div class="row" style="justify-content:space-between;">
+                <div>
+                  <div class="mono" style="font-weight:800;">scalper</div>
+                  <div class="small muted">+5 pps</div>
+                </div>
+                <div class="mono muted">lvl <span id="lvl-scalper">0</span></div>
+              </div>
+              <div class="row" style="margin-top:10px; justify-content:space-between;">
+                <div class="mono muted">cost <span class="kbd" id="cost-scalper">—</span></div>
+                <button class="btn" id="buy-scalper">buy</button>
+              </div>
+            </div>
+
+            <div style="height:10px"></div>
+
+            <div class="card">
+              <div class="row" style="justify-content:space-between;">
+                <div>
+                  <div class="mono" style="font-weight:800;">speculator</div>
+                  <div class="small muted">+30 pps</div>
+                </div>
+                <div class="mono muted">lvl <span id="lvl-speculator">0</span></div>
+              </div>
+              <div class="row" style="margin-top:10px; justify-content:space-between;">
+                <div class="mono muted">cost <span class="kbd" id="cost-speculator">—</span></div>
+                <button class="btn" id="buy-speculator">buy</button>
+              </div>
+            </div>
+
+            <div style="height:10px"></div>
+
+            <div class="card">
+              <div class="row" style="justify-content:space-between;">
+                <div>
+                  <div class="mono" style="font-weight:800;">stockbroker</div>
+                  <div class="small muted">+80 pps</div>
+                </div>
+                <div class="mono muted">lvl <span id="lvl-stockbroker">0</span></div>
+              </div>
+              <div class="row" style="margin-top:10px; justify-content:space-between;">
+                <div class="mono muted">cost <span class="kbd" id="cost-stockbroker">—</span></div>
+                <button class="btn" id="buy-stockbroker">buy</button>
+              </div>
+            </div>
+
+            <div class="status" id="shop-status">Idle credits on any request (state/click/buy/trade).</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:16px"></div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title" style="font-size:20px;">Paper Trade</h2>
+            <p class="panel-sub">single open position • ±10% capped move • 7% entry fee</p>
+          </div>
+          <div class="pill">market <span class="mono">SIM</span></div>
+        </div>
+
+        <div class="panel-body">
+          <div class="cards">
+            <div class="card">
+              <h4>symbol</h4>
+              <div class="value" style="font-size:24px;" id="position-symbol">—</div>
+              <div class="small">active_position</div>
+            </div>
+
+            <div class="card">
+              <h4>invested</h4>
+              <div class="value" style="font-size:24px;" id="position-invested">0</div>
+              <div class="small">amount_spent</div>
+            </div>
+
+            <div class="card">
+              <h4>current_value</h4>
+              <div class="value" style="font-size:24px;" id="position-current">0</div>
+              <div class="small">mark_to_market</div>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <div class="card">
+            <div class="row" style="justify-content:space-between; gap:16px; align-items:flex-end;">
+              <div style="flex:1 1 220px;">
+                <div class="mono muted" style="font-size:12px;">amount_to_invest</div>
+                <input id="trade-amount" class="input" type="number" min="10" step="1" placeholder="100" />
+              </div>
+
+              <div class="row" style="gap:10px; justify-content:flex-end;">
+                <button class="btn" id="buy-position-btn">buy stock</button>
+                <button class="btn secondary" id="sell-position-btn" disabled>sell position</button>
+              </div>
+            </div>
+
+            <div class="hr"></div>
+
+            <div class="row" style="justify-content:space-between;">
+              <div class="mono muted">pnl <span class="kbd" id="position-pnl">0</span></div>
+              <div class="mono muted">fee <span class="kbd" id="position-fee">7% entry fee</span></div>
+            </div>
+          </div>
+
+          <div class="status" id="trade-status">
+            No open position.
           </div>
         </div>
       </div>
@@ -235,17 +360,22 @@ const endpoints = {
   click: "/click",
   state: "/state",
   buy: "/buy",
+  trade: "/trade",
   leaderboard: "/leaderboard",
 };
 
 const leaderboardPollMs = 4000;
 const idleTickMs = 1200;
 
-/** pricing (frontend display only; backend enforces truth) */
 const UPGRADES = {
-  cursor: { baseCost: 10, growth: 1.15 },
-  generator: { baseCost: 100, growth: 1.20 },
+  cursor:      { baseCost: 10,   growth: 1.15, ppcAdd: 1, ppsAdd: 0  },
+  dayTrader:   { baseCost: 60,   growth: 1.16, ppcAdd: 0, ppsAdd: 1  },
+  generator:   { baseCost: 100,  growth: 1.20, ppcAdd: 0, ppsAdd: 2  },
+  scalper:     { baseCost: 300,  growth: 1.22, ppcAdd: 0, ppsAdd: 5  },
+  speculator:  { baseCost: 1800, growth: 1.24, ppcAdd: 0, ppsAdd: 30 },
+  stockbroker: { baseCost: 6000, growth: 1.26, ppcAdd: 0, ppsAdd: 80 },
 };
+
 function nextCost(id, level){
   const u = UPGRADES[id];
   return Math.floor(u.baseCost * Math.pow(u.growth, level));
@@ -254,6 +384,12 @@ function nextCost(id, level){
 const $ = (id) => document.getElementById(id);
 function nowStamp(){ return new Date().toLocaleString(); }
 function redirectUri(){ return window.location.origin + "/"; }
+function formatMoney(v) {
+  return Number(v ?? 0).toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  });
+}
 
 /** ============================
  * AUTH (PKCE)
@@ -355,13 +491,11 @@ async function exchangeCodeForTokens(code) {
   let data; try { data = JSON.parse(text); } catch { data = { raw: text }; }
   if (!res.ok) throw new Error(data.error_description || data.error || data.raw || text);
 
-  // Store tokens (REST API Cognito authorizer commonly works best with id_token)
   if (data.access_token) storage.accessToken = data.access_token;
   if (data.id_token) storage.idToken = data.id_token;
   if (data.refresh_token) sessionStorage.setItem("refresh_token", data.refresh_token);
 
   if (!storage.idToken) {
-    // fallback if your authorizer accepts access token only
     if (!storage.accessToken) throw new Error("No tokens returned from Cognito.");
   }
 }
@@ -400,6 +534,11 @@ async function apiFetch(path, opts = {}) {
 const clickOnce = () => apiFetch(endpoints.click, { method: "POST" });
 const getState = () => apiFetch(endpoints.state, { method: "GET" });
 const buyUpgrade = (upgradeId) => apiFetch(endpoints.buy, { method: "POST", body: JSON.stringify({ upgradeId }) });
+const tradePosition = (action, amount = null) =>
+  apiFetch(endpoints.trade, {
+    method: "POST",
+    body: JSON.stringify({ action, amount })
+  });
 const getLeaderboard = () => apiFetch(endpoints.leaderboard, { method: "GET" });
 
 /** ============================
@@ -453,28 +592,63 @@ function renderLeaderboard(items){
   }).join("");
   $("leaderboard-body").innerHTML = rows || `<tr><td colspan="3" class="muted">No scores yet.</td></tr>`;
 }
+
+function renderPosition(position){
+  const symbolEl = $("position-symbol");
+  const investedEl = $("position-invested");
+  const currentEl = $("position-current");
+  const pnlEl = $("position-pnl");
+  const feeEl = $("position-fee");
+  const statusEl = $("trade-status");
+  const sellBtn = $("sell-position-btn");
+
+  if (!position) {
+    symbolEl.textContent = "—";
+    investedEl.textContent = "0";
+    currentEl.textContent = "0";
+    pnlEl.textContent = "0";
+    feeEl.textContent = "7% entry fee";
+    statusEl.textContent = "No open position.";
+    sellBtn.disabled = true;
+    return;
+  }
+
+  symbolEl.textContent = position.symbol || "SIM";
+  investedEl.textContent = formatMoney(position.amount);
+  currentEl.textContent = formatMoney(position.currentValue);
+  pnlEl.textContent = `${position.pctDelta >= 0 ? "+" : ""}${position.pctDelta.toFixed(2)}% / ${formatMoney(position.unrealized)}`;
+  feeEl.textContent = `entry fee: ${formatMoney(position.feePaid)}`;
+  statusEl.textContent = "Position is updated every 3 seconds, capped at ±10% from post-fee principal.";
+  sellBtn.disabled = false;
+}
+
 function renderState(state){
   $("user-label").textContent = state.name || "trader";
   $("user-sub").textContent = "";
-  $("points").textContent = Number(state.money ?? 0);
+  $("points").textContent = formatMoney(state.money ?? 0);
   $("ppc").textContent = Number(state.ppc ?? 1);
   $("pps").textContent = Number(state.pps ?? 0);
   $("last-update").textContent = "last_sync: " + nowStamp();
 
   const upgrades = state.upgrades || {};
-  const lvlCursor = Number(upgrades.cursor ?? 0);
-  const lvlGen = Number(upgrades.generator ?? 0);
-  $("lvl-cursor").textContent = lvlCursor;
-  $("lvl-generator").textContent = lvlGen;
-  $("cost-cursor").textContent = nextCost("cursor", lvlCursor);
-  $("cost-generator").textContent = nextCost("generator", lvlGen);
-
   const money = Number(state.money ?? 0);
-  const canCursor = money >= nextCost("cursor", lvlCursor);
-  const canGen = money >= nextCost("generator", lvlGen);
-  $("buy-cursor").disabled = !canCursor;
-  $("buy-generator").disabled = !canGen;
+
+  for (const upgradeId of Object.keys(UPGRADES)) {
+    const lvl = Number(upgrades[upgradeId] ?? 0);
+    const cost = nextCost(upgradeId, lvl);
+
+    const lvlEl = document.getElementById(`lvl-${upgradeId}`);
+    const costEl = document.getElementById(`cost-${upgradeId}`);
+    const btnEl = document.getElementById(`buy-${upgradeId}`);
+
+    if (lvlEl) lvlEl.textContent = lvl;
+    if (costEl) costEl.textContent = formatMoney(cost);
+    if (btnEl) btnEl.disabled = money < cost;
+  }
+
+  renderPosition(state.position || null);
 }
+
 async function refreshLeaderboard(){
   try{
     setLbStatus(true, "leaderboard:// loading…");
@@ -519,6 +693,30 @@ async function doBuy(upgradeId){
     setStatus(false, "buy:// failed: " + e.message);
   }
 }
+async function doTrade(action){
+  try{
+    const amount = Number($("trade-amount").value || 0);
+
+    if (action === "buy" && (!Number.isFinite(amount) || amount < 10)) {
+      setStatus(false, "trade:// minimum investment is 10");
+      return;
+    }
+
+    setStatus(true, `trade://${action} pending…`);
+    const state = await tradePosition(action, action === "buy" ? amount : null);
+    renderState(state);
+
+    if (action === "buy") {
+      setStatus(true, `trade:// buy ok`);
+    } else {
+      setStatus(true, `trade:// sell ok`);
+    }
+
+    await refreshLeaderboard();
+  }catch(e){
+    setStatus(false, "trade:// failed: " + e.message);
+  }
+}
 
 /** Title “decode” animation */
 function animateTitle(){
@@ -543,7 +741,7 @@ function animateTitle(){
   tick();
 }
 
-/** Candles (your current tuned version) */
+/** Candles */
 function startCandles() {
   const canvas = $("bg");
   const ctx = canvas.getContext("2d");
@@ -821,8 +1019,15 @@ async function init(){
     setStatus(true, "state:// ok");
   });
   $("click-btn").addEventListener("click", doClick);
-  $("buy-cursor").addEventListener("click", () => doBuy("cursor"));
-  $("buy-generator").addEventListener("click", () => doBuy("generator"));
+
+  ["cursor","dayTrader","generator","scalper","speculator","stockbroker"].forEach((id) => {
+    const el = document.getElementById(`buy-${id}`);
+    if (el) el.addEventListener("click", () => doBuy(id));
+  });
+
+  $("buy-position-btn").addEventListener("click", () => doTrade("buy"));
+  $("sell-position-btn").addEventListener("click", () => doTrade("sell"));
+
   $("learn-btn").addEventListener("click", () => { window.location.href = "./how-it-works.html"; });
 
   const params = getParams();
@@ -847,7 +1052,6 @@ async function init(){
     }
   }
 
-  // Consider "logged in" if we have at least one token stored
   if (storage.idToken || storage.accessToken){
     showLoggedIn();
     setStatus(true, "state:// syncing…");
@@ -864,6 +1068,7 @@ async function init(){
     showLoggedOut();
   }
 }
+
 function startTicker() {
   const track = $("ticker-track");
   if (!track) return;
@@ -879,14 +1084,13 @@ function startTicker() {
     "EURUSD","USDJPY","GBPUSD","AUDUSD","USDCAD","USDCHF","NZDUSD"
   ];
 
-  const gap = 22;       // should match CSS gap
-  const speed = 0.55;   // px per frame-ish feel, lower = slower
+  const gap = 22;
+  const speed = 0.55;
 
   let offset = 0;
   let lastTime = 0;
   let lastSymbols = [];
 
-  // Stop CSS loop so JS fully controls movement
   track.style.animation = "none";
   track.style.transform = "translateX(0)";
   track.innerHTML = "";
@@ -907,7 +1111,7 @@ function startTicker() {
   }
 
   function makeItem(sym) {
-    const pct = Math.random() * 3.0 - 1.5; // -1.5%..+1.5%
+    const pct = Math.random() * 3.0 - 1.5;
     const up = pct >= 0;
     const cls = up ? "ticker-up" : "ticker-down";
     const arrow = up ? "▲" : "▼";
@@ -942,7 +1146,6 @@ function startTicker() {
   }
 
   function fillInitial() {
-    // Fill enough items to cover viewport + overflow buffer
     while (contentWidth() < window.innerWidth * 1.8) {
       appendOne();
     }
@@ -957,7 +1160,6 @@ function startTicker() {
 
     offset -= speed * (dt / 16.6667);
 
-    // Remove items that fully moved offscreen
     let firstSpan = firstItemWidthWithGap();
     while (track.firstElementChild && -offset >= firstSpan) {
       offset += firstSpan;
@@ -966,7 +1168,6 @@ function startTicker() {
       firstSpan = firstItemWidthWithGap();
     }
 
-    // Keep enough items on the right so there is never a gap
     while (contentWidth() + offset < window.innerWidth * 1.4) {
       appendOne();
     }
@@ -983,6 +1184,7 @@ function startTicker() {
     }
   });
 }
+
 init();
 </script>
 </body>
