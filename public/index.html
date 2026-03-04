@@ -823,7 +823,7 @@ async function init(){
   $("click-btn").addEventListener("click", doClick);
   $("buy-cursor").addEventListener("click", () => doBuy("cursor"));
   $("buy-generator").addEventListener("click", () => doBuy("generator"));
-  $("learn-btn").addEventListener("click", () => alert("Login with Cognito. Click/buy upgrades. Leaderboard updates live."));
+  $("learn-btn").addEventListener("click", () => { window.location.href = "./how-it-works.html"; });
 
   const params = getParams();
   if (params.error){

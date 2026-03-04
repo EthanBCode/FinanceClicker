@@ -377,3 +377,57 @@ tbody tr:hover td{
 .ticker-sep{
   opacity: 0.25;
 }
+/* How it works page */
+.docs-page{
+  min-height: 100%;
+  background: #020303;
+}
+
+.docs-container{
+  position: relative;
+  z-index: 1;
+}
+
+.docs-content{
+  line-height: 1.7;
+  max-width: 90ch;
+}
+
+.docs-content p{
+  margin: 0 0 14px;
+  color: rgba(232,255,245,0.9);
+}
+
+.docs-content h3{
+  margin: 20px 0 8px;
+  font-size: 17px;
+  letter-spacing: 0.01em;
+}
+
+.terminal-bg{
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 500px at 80% -10%, rgba(18, 69, 48, 0.20), transparent 60%),
+    radial-gradient(1000px 600px at 10% 110%, rgba(18, 69, 48, 0.16), transparent 65%),
+    #030504;
+}
+
+.terminal-line{
+  position: absolute;
+  top: 100%;
+  color: rgba(240, 255, 246, 0.9);
+  font-family: var(--mono);
+  white-space: nowrap;
+  text-shadow: 0 0 8px rgba(90, 255, 160, 0.16);
+  transform: translateX(-50%);
+  animation-name: terminalScroll;
+  animation-timing-function: linear;
+}
+
+@keyframes terminalScroll {
+  from { transform: translate(-50%, 0); }
+  to { transform: translate(-50%, -120vh); }
+}

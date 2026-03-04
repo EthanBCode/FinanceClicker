@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>How Finance Clicker Works</title>
+  <meta name="description" content="Architecture and systems behind Finance Clicker." />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="icon" href="data:," />
+</head>
+<body class="docs-page">
+  <div class="terminal-bg" id="terminal-bg" aria-hidden="true"></div>
+  <div class="scanlines"></div>
+  <div class="vignette"></div>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo">$</div>
+        <div>
+          <h1>FINANCE CLICKER</h1>
+          <p>build:// overview • infra:// aws • ui:// terminal docs</p>
+        </div>
+      </div>
+      <a class="btn" href="./index.html">← back to game</a>
+    </div>
+  </header>
+
+  <main class="container docs-container">
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">How This Website Works</h2>
+          <p class="panel-sub">From Cognito auth to DynamoDB leaderboard updates</p>
+        </div>
+        <div class="pill">portfolio breakdown</div>
+      </div>
+      <div class="panel-body docs-content">
+        <p>
+          <strong>Finance Clicker</strong> is a full-stack game where every important action is validated in AWS.
+          Instead of storing score logic only in-browser, the app routes scoring and upgrade purchases to API
+          endpoints backed by Lambda so players cannot edit local variables to cheat points.
+        </p>
+
+        <h3>1) Authentication (AWS Cognito)</h3>
+        <p>
+          Users log in through Amazon Cognito Hosted UI. After sign-in, the app receives tokens through the OAuth
+          callback URL and uses those tokens for authorized requests. This ties every score update to a verified user.
+        </p>
+
+        <h3>2) Gameplay Requests (API Gateway + Lambda)</h3>
+        <p>
+          When you click the trade button or buy upgrades, the frontend calls API Gateway routes such as
+          <span class="mono">/click</span>, <span class="mono">/buy</span>, and <span class="mono">/state</span>.
+          Lambda functions apply server-side game rules for points-per-click and points-per-second, then return updated
+          player state.
+        </p>
+
+        <h3>3) Persistent Data (DynamoDB)</h3>
+        <p>
+          Player progression, upgrade levels, and cumulative points are stored in DynamoDB. Because this state lives in
+          a managed database, users keep progress between sessions and devices. Leaderboard queries read top scores from
+          DynamoDB and render rankings live in the UI.
+        </p>
+
+        <h3>4) Frontend Design Choices</h3>
+        <p>
+          The main page uses a finance terminal aesthetic with ticker tape, market-inspired visuals, and glassy panels.
+          This page keeps the same style language while switching to a "movie terminal" background to reinforce the
+          engineering narrative behind the project.
+        </p>
+
+        <div class="status">
+          TL;DR: Cognito identifies users, Lambda enforces game rules, DynamoDB stores progression, and the frontend
+          visualizes state with a finance-terminal style.
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+(function startTerminalBackground(){
+  const host = document.getElementById("terminal-bg");
+  if (!host) return;
+
+  const snippets = [
+    "$ aws cognito-idp initiate-auth --client-id *** --auth-flow USER_PASSWORD_AUTH",
+    "[INFO] lambda://execute_trade user=trader_014 ppc=5 pps=8",
+    "SELECT player, points FROM leaderboard ORDER BY points DESC LIMIT 10;",
+    "POST /prod/click 200 42ms",
+    "PUT dynamodb://finance-clicker-state pk=user#A9SK",
+    "const idleCredits = Math.floor(deltaSeconds * pps);",
+    "apiBase + '/buy?type=cursor'",
+    "grant_type=authorization_code&redirect_uri=https://example.com/",
+    "CloudWatch Logs: state_sync complete",
+    "for (const row of topPlayers) renderLeaderboardRow(row);",
+    "[SECURITY] JWT verified: token_use=id",
+    "aws lambda invoke --function-name click-handler out.json",
+    "user_points = user_points + ppc + offline_credits",
+    "GET /prod/leaderboard 200 36ms",
+  ];
+
+  function makeLine(){
+    const line = document.createElement("div");
+    line.className = "terminal-line";
+    line.textContent = snippets[(Math.random() * snippets.length) | 0];
+    line.style.left = `${Math.random() * 100}%`;
+    line.style.animationDuration = `${8 + Math.random() * 8}s`;
+    line.style.animationDelay = `${Math.random() * 2}s`;
+    line.style.opacity = (0.09 + Math.random() * 0.15).toFixed(2);
+    line.style.fontSize = `${11 + Math.random() * 4}px`;
+    host.appendChild(line);
+
+    line.addEventListener("animationend", () => line.remove());
+  }
+
+  for (let i = 0; i < 36; i++) makeLine();
+  setInterval(makeLine, 220);
+})();
+</script>
+</body>
+</html>
