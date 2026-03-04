@@ -92,11 +92,11 @@
    |  verified JWT
    v
 [API Gateway + Cognito Authorizer]
-   |------------------------|------------------------|------------------------|
-   v                        v                        v                        v
+   |------------------------|------------------------|-------------------------|
+   v                        v                        v                         v
 [Lambda /click]        [Lambda /buy]           [Lambda /state]        [Lambda /leaderboard]
-   | validate + calc       | validate cost          | read canonical         | query top scores
-   | update score/rates    | update upgrades        | player snapshot         | shape response
+   | validate + calc       | validate cost          | read canonical           | query top scores
+   | update score/rates    | update upgrades        | player snapshot          | shape response
    |___________________________ writes / reads ________________________________|
                                    v
                            [DynamoDB Tables]
