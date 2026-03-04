@@ -332,18 +332,15 @@ tbody tr:hover td{
   display:flex;
   align-items:center;
 }
-
 .ticker-track{
   display: inline-flex;
-  flex-wrap: nowrap;            /* ✅ no wrapping */
-  white-space: nowrap;          /* ✅ no wrapping */
+  flex-wrap: nowrap;
+  white-space: nowrap;
   align-items: center;
   gap: 22px;
   padding-left: 14px;
   will-change: transform;
-  animation: tickerMove 52s linear infinite; /* scroll speed */
 }
-
 @keyframes tickerMove{
   from { transform: translateX(0); }
   to   { transform: translateX(-25%); }      /* ✅ seamless loop with duplicated content */

@@ -864,40 +864,125 @@ async function init(){
     showLoggedOut();
   }
 }
-
-function startTicker(){
+function startTicker() {
   const track = $("ticker-track");
   if (!track) return;
 
-  const symbols = ["SPY","QQQ","AAPL","TSLA","NVDA","MSFT","AMZN","META","BTC","ETH","XAU","EURUSD","USDJPY"];
+  const symbols = [
+    "SPY","QQQ","DIA","IWM","VTI","VOO","IVV","XLF","XLK","XLE","XLV","XLI",
+    "AAPL","MSFT","NVDA","AMZN","META","GOOGL","TSLA","AMD","NFLX","AVGO","CRM","ORCL",
+    "JPM","BAC","GS","MS","BLK","V","MA","AXP","COIN","PYPL","SQ","BRK.B",
+    "COST","WMT","HD","LOW","NKE","SBUX","MCD","DIS","UBER","ABNB","SHOP","SNOW",
+    "PLTR","INTC","MU","ADBE","CSCO","QCOM","TXN","ASML","TSM","BABA","PDD","SONY",
+    "BTC","ETH","SOL","XRP","DOGE","ADA","AVAX","LINK","UNI","MATIC",
+    "GLD","SLV","USO","TLT","HYG","EEM","FXI","ARKK",
+    "EURUSD","USDJPY","GBPUSD","AUDUSD","USDCAD","USDCHF","NZDUSD"
+  ];
 
-  function oneItem(){
-    const sym = symbols[(Math.random()*symbols.length)|0];
-    const pct = (Math.random()*3.0 - 1.5);
+  const gap = 22;       // should match CSS gap
+  const speed = 0.55;   // px per frame-ish feel, lower = slower
+
+  let offset = 0;
+  let lastTime = 0;
+  let lastSymbols = [];
+
+  // Stop CSS loop so JS fully controls movement
+  track.style.animation = "none";
+  track.style.transform = "translateX(0)";
+  track.innerHTML = "";
+
+  function pickSymbol() {
+    let sym = symbols[(Math.random() * symbols.length) | 0];
+    let guard = 0;
+
+    while (guard < 200 && lastSymbols.includes(sym)) {
+      sym = symbols[(Math.random() * symbols.length) | 0];
+      guard++;
+    }
+
+    lastSymbols.push(sym);
+    if (lastSymbols.length > 2) lastSymbols.shift();
+
+    return sym;
+  }
+
+  function makeItem(sym) {
+    const pct = Math.random() * 3.0 - 1.5; // -1.5%..+1.5%
     const up = pct >= 0;
     const cls = up ? "ticker-up" : "ticker-down";
     const arrow = up ? "▲" : "▼";
     const sign = up ? "+" : "";
-    const price = (80 + Math.random()*900).toFixed(2);
+    const price = (80 + Math.random() * 900).toFixed(2);
 
-    return `
-      <div class="ticker-item">
-        <span class="ticker-dot"></span>
-        <span class="ticker-sym">${sym}</span>
-        <span class="${cls}">${arrow} ${sign}${pct.toFixed(2)}%</span>
-        <span class="ticker-sep">•</span>
-        <span class="muted">${price}</span>
-      </div>
+    const el = document.createElement("div");
+    el.className = "ticker-item";
+    el.dataset.sym = sym;
+    el.innerHTML = `
+      <span class="ticker-dot"></span>
+      <span class="ticker-sym">${sym}</span>
+      <span class="${cls}">${arrow} ${sign}${pct.toFixed(2)}%</span>
+      <span class="ticker-sep">•</span>
+      <span class="muted">${price}</span>
     `;
+    return el;
   }
 
-  let strip = "";
-  for (let i=0;i<34;i++) strip += oneItem();
+  function appendOne() {
+    track.appendChild(makeItem(pickSymbol()));
+  }
 
-  track.innerHTML = strip + strip;
-  track.style.animationDuration = "55s";
+  function contentWidth() {
+    return track.scrollWidth;
+  }
+
+  function firstItemWidthWithGap() {
+    const first = track.firstElementChild;
+    if (!first) return 0;
+    return first.getBoundingClientRect().width + gap;
+  }
+
+  function fillInitial() {
+    // Fill enough items to cover viewport + overflow buffer
+    while (contentWidth() < window.innerWidth * 1.8) {
+      appendOne();
+    }
+  }
+
+  fillInitial();
+
+  function tick(ts) {
+    if (!lastTime) lastTime = ts;
+    const dt = Math.min(32, ts - lastTime);
+    lastTime = ts;
+
+    offset -= speed * (dt / 16.6667);
+
+    // Remove items that fully moved offscreen
+    let firstSpan = firstItemWidthWithGap();
+    while (track.firstElementChild && -offset >= firstSpan) {
+      offset += firstSpan;
+      track.removeChild(track.firstElementChild);
+      appendOne();
+      firstSpan = firstItemWidthWithGap();
+    }
+
+    // Keep enough items on the right so there is never a gap
+    while (contentWidth() + offset < window.innerWidth * 1.4) {
+      appendOne();
+    }
+
+    track.style.transform = `translateX(${offset}px)`;
+    requestAnimationFrame(tick);
+  }
+
+  requestAnimationFrame(tick);
+
+  window.addEventListener("resize", () => {
+    while (contentWidth() + offset < window.innerWidth * 1.4) {
+      appendOne();
+    }
+  });
 }
-
 init();
 </script>
 </body>
