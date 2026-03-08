@@ -152,6 +152,7 @@
           </div>
 
           <div class="panel-body">
+            <!-- (Upgrades unchanged) -->
             <div class="card">
               <div class="row" style="justify-content:space-between;">
                 <div>
@@ -253,11 +254,12 @@
 
       <div style="height:16px"></div>
 
+      <!-- LONG -->
       <div class="panel">
         <div class="panel-header">
           <div>
-            <h2 class="panel-title" style="font-size:20px;">Paper Trade</h2>
-            <p class="panel-sub">single open position • ±10% capped move • 7% entry fee</p>
+            <h2 class="panel-title" style="font-size:20px;">Paper Trade — Long</h2>
+            <p class="panel-sub">price moves every 3s • step ∈ [-1%,+1%] • capped ±10% • 7% fee</p>
           </div>
           <div class="pill">market <span class="mono">SIM</span></div>
         </div>
@@ -266,20 +268,47 @@
           <div class="cards">
             <div class="card">
               <h4>symbol</h4>
-              <div class="value" style="font-size:24px;" id="position-symbol">—</div>
-              <div class="small">active_position</div>
+              <div class="value" style="font-size:24px;" id="long-symbol">—</div>
+              <div class="small">active_long</div>
             </div>
 
             <div class="card">
+              <h4>price</h4>
+              <div class="value" style="font-size:20px; line-height:1.2;">
+                <div id="long-price">0</div>
+                <div class="small muted">entry: <span id="long-price-entry">—</span></div>
+              </div>
+              <div class="small">current_stock_price</div>
+            </div>
+
+            <div class="card">
+              <h4>last_tick</h4>
+              <div class="value" style="font-size:24px;">
+                <span id="long-lasttick" class="muted">—</span>
+              </div>
+              <div class="small">most_recent_step_change</div>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <div class="cards">
+            <div class="card">
               <h4>invested</h4>
-              <div class="value" style="font-size:24px;" id="position-invested">0</div>
+              <div class="value" style="font-size:24px;" id="long-invested">0</div>
               <div class="small">amount_spent</div>
             </div>
 
             <div class="card">
               <h4>current_value</h4>
-              <div class="value" style="font-size:24px;" id="position-current">0</div>
-              <div class="small">mark_to_market</div>
+              <div class="value" style="font-size:24px;" id="long-current">0</div>
+              <div class="small">if_close_now</div>
+            </div>
+
+            <div class="card">
+              <h4>pnl</h4>
+              <div class="value" style="font-size:20px;" id="long-pnl">0</div>
+              <div class="small">pct_from_entry / dollars</div>
             </div>
           </div>
 
@@ -289,26 +318,111 @@
             <div class="row" style="justify-content:space-between; gap:16px; align-items:flex-end;">
               <div style="flex:1 1 220px;">
                 <div class="mono muted" style="font-size:12px;">amount_to_invest</div>
-                <input id="trade-amount" class="input" type="number" min="10" step="1" placeholder="100" />
+                <input id="long-amount" class="input" type="number" min="10" step="1" placeholder="100" />
               </div>
 
               <div class="row" style="gap:10px; justify-content:flex-end;">
-                <button class="btn" id="buy-position-btn">buy stock</button>
-                <button class="btn secondary" id="sell-position-btn" disabled>sell position</button>
+                <button class="btn" id="long-buy-btn">buy stock</button>
+                <button class="btn secondary" id="long-sell-btn" disabled>sell long</button>
               </div>
             </div>
 
             <div class="hr"></div>
 
             <div class="row" style="justify-content:space-between;">
-              <div class="mono muted">pnl <span class="kbd" id="position-pnl">0</span></div>
-              <div class="mono muted">fee <span class="kbd" id="position-fee">7% entry fee</span></div>
+              <div class="mono muted">fee <span class="kbd" id="long-fee">7% entry fee</span></div>
+              <div class="mono muted">entry <span class="kbd" id="long-entry">—</span></div>
             </div>
           </div>
 
-          <div class="status" id="trade-status">
-            No open position.
+          <div class="status" id="long-status">No open long position.</div>
+        </div>
+      </div>
+
+      <div style="height:16px"></div>
+
+      <!-- SHORT -->
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title" style="font-size:20px;">Paper Trade — Short</h2>
+            <p class="panel-sub">profit if price falls • step ∈ [-1.1%,+1.1%] • uncapped • 8% borrow fee</p>
           </div>
+          <div class="pill">risk <span class="mono">HIGH</span></div>
+        </div>
+
+        <div class="panel-body">
+          <div class="cards">
+            <div class="card">
+              <h4>symbol</h4>
+              <div class="value" style="font-size:24px;" id="short-symbol">—</div>
+              <div class="small">active_short</div>
+            </div>
+
+            <div class="card">
+              <h4>price</h4>
+              <div class="value" style="font-size:20px; line-height:1.2;">
+                <div id="short-price">0</div>
+                <div class="small muted">entry: <span id="short-price-entry">—</span></div>
+              </div>
+              <div class="small">current_stock_price</div>
+            </div>
+
+            <div class="card">
+              <h4>last_tick</h4>
+              <div class="value" style="font-size:24px;">
+                <span id="short-lasttick" class="muted">—</span>
+              </div>
+              <div class="small">most_recent_step_change</div>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <div class="cards">
+            <div class="card">
+              <h4>posted</h4>
+              <div class="value" style="font-size:24px;" id="short-invested">0</div>
+              <div class="small">amount_posted</div>
+            </div>
+
+            <div class="card">
+              <h4>close_value</h4>
+              <div class="value" style="font-size:24px;" id="short-current">0</div>
+              <div class="small">if_close_now</div>
+            </div>
+
+            <div class="card">
+              <h4>pnl</h4>
+              <div class="value" style="font-size:20px;" id="short-pnl">0</div>
+              <div class="small">pct_from_entry / dollars</div>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <div class="card">
+            <div class="row" style="justify-content:space-between; gap:16px; align-items:flex-end;">
+              <div style="flex:1 1 220px;">
+                <div class="mono muted" style="font-size:12px;">amount_to_short</div>
+                <input id="short-amount" class="input" type="number" min="10" step="1" placeholder="100" />
+              </div>
+
+              <div class="row" style="gap:10px; justify-content:flex-end;">
+                <button class="btn" id="short-buy-btn">open short</button>
+                <button class="btn secondary" id="short-sell-btn" disabled>close short</button>
+              </div>
+            </div>
+
+            <div class="hr"></div>
+
+            <div class="row" style="justify-content:space-between;">
+              <div class="mono muted">fee <span class="kbd" id="short-fee">8% borrow fee</span></div>
+              <div class="mono muted">entry <span class="kbd" id="short-entry">—</span></div>
+            </div>
+          </div>
+
+          <div class="status" id="short-status">No open short position.</div>
         </div>
       </div>
 
@@ -346,9 +460,6 @@
   </main>
 
 <script>
-/** ============================
- * CONFIG
- * ============================ */
 const cognito = {
   domain: "https://us-east-2pe2kxra0n.auth.us-east-2.amazoncognito.com",
   clientId: "1qrdb0a0f1r4lcgsh99l80ffbl",
@@ -356,13 +467,7 @@ const cognito = {
 };
 
 const apiBase = "https://2a0nwy7yia.execute-api.us-east-2.amazonaws.com/prod";
-const endpoints = {
-  click: "/click",
-  state: "/state",
-  buy: "/buy",
-  trade: "/trade",
-  leaderboard: "/leaderboard",
-};
+const endpoints = { click:"/click", state:"/state", buy:"/buy", trade:"/trade", leaderboard:"/leaderboard" };
 
 const leaderboardPollMs = 4000;
 const idleTickMs = 1200;
@@ -385,15 +490,18 @@ const $ = (id) => document.getElementById(id);
 function nowStamp(){ return new Date().toLocaleString(); }
 function redirectUri(){ return window.location.origin + "/"; }
 function formatMoney(v) {
-  return Number(v ?? 0).toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2
-  });
+  return Number(v ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+function formatPct(v){
+  const n = Number(v ?? 0);
+  const sign = n >= 0 ? "+" : "";
+  return `${sign}${n.toFixed(2)}%`;
+}
+function pctClass(v){
+  return (Number(v ?? 0) >= 0) ? "ticker-up" : "ticker-down";
 }
 
-/** ============================
- * AUTH (PKCE)
- * ============================ */
+// ===== AUTH (unchanged) =====
 function base64UrlEncode(arrayBuffer) {
   const bytes = new Uint8Array(arrayBuffer);
   let str = "";
@@ -432,17 +540,12 @@ function cleanUrl() {
 const storage = {
   get accessToken(){ return sessionStorage.getItem("access_token"); },
   set accessToken(v){ sessionStorage.setItem("access_token", v); },
-
   get idToken(){ return sessionStorage.getItem("id_token"); },
   set idToken(v){ sessionStorage.setItem("id_token", v); },
-
   get verifier(){ return sessionStorage.getItem("pkce_verifier"); },
   set verifier(v){ sessionStorage.setItem("pkce_verifier", v); },
-
   clear(){
-    ["access_token","id_token","refresh_token","pkce_verifier","oauth_state"].forEach(k =>
-      sessionStorage.removeItem(k)
-    );
+    ["access_token","id_token","refresh_token","pkce_verifier","oauth_state"].forEach(k => sessionStorage.removeItem(k));
   }
 };
 
@@ -495,9 +598,7 @@ async function exchangeCodeForTokens(code) {
   if (data.id_token) storage.idToken = data.id_token;
   if (data.refresh_token) sessionStorage.setItem("refresh_token", data.refresh_token);
 
-  if (!storage.idToken) {
-    if (!storage.accessToken) throw new Error("No tokens returned from Cognito.");
-  }
+  if (!storage.idToken && !storage.accessToken) throw new Error("No tokens returned from Cognito.");
 }
 
 function logout() {
@@ -508,18 +609,14 @@ function logout() {
   window.location.href = url.toString();
 }
 
-/** ============================
- * API
- * ============================ */
+// ===== API =====
 function authHeader() {
   const t = storage.idToken || storage.accessToken;
   return t ? { "Authorization": t } : {};
 }
 
 async function apiFetch(path, opts = {}) {
-  if (!path) throw new Error("Frontend misconfigured: endpoint missing.");
   const url = apiBase.replace(/\/+$/,"") + path;
-
   const res = await fetch(url, {
     ...opts,
     headers: { "Content-Type": "application/json", ...(opts.headers||{}), ...authHeader() }
@@ -534,16 +631,11 @@ async function apiFetch(path, opts = {}) {
 const clickOnce = () => apiFetch(endpoints.click, { method: "POST" });
 const getState = () => apiFetch(endpoints.state, { method: "GET" });
 const buyUpgrade = (upgradeId) => apiFetch(endpoints.buy, { method: "POST", body: JSON.stringify({ upgradeId }) });
-const tradePosition = (action, amount = null) =>
-  apiFetch(endpoints.trade, {
-    method: "POST",
-    body: JSON.stringify({ action, amount })
-  });
+const tradePosition = (side, action, amount = null) =>
+  apiFetch(endpoints.trade, { method: "POST", body: JSON.stringify({ side, action, amount }) });
 const getLeaderboard = () => apiFetch(endpoints.leaderboard, { method: "GET" });
 
-/** ============================
- * UI glue
- * ============================ */
+// ===== UI glue =====
 let leaderboardTimer = null;
 let idleTimer = null;
 
@@ -593,33 +685,56 @@ function renderLeaderboard(items){
   $("leaderboard-body").innerHTML = rows || `<tr><td colspan="3" class="muted">No scores yet.</td></tr>`;
 }
 
-function renderPosition(position){
-  const symbolEl = $("position-symbol");
-  const investedEl = $("position-invested");
-  const currentEl = $("position-current");
-  const pnlEl = $("position-pnl");
-  const feeEl = $("position-fee");
-  const statusEl = $("trade-status");
-  const sellBtn = $("sell-position-btn");
+function renderLongPosition(p){
+  $("long-symbol").textContent = p?.symbol || "—";
+  $("long-invested").textContent = formatMoney(p?.amount ?? 0);
+  $("long-current").textContent = formatMoney(p?.currentValue ?? 0);
+  $("long-price").textContent = formatMoney(p?.currentPrice ?? 0);
+  $("long-price-entry").textContent = p ? formatMoney(p.entryPrice) : "—";
+  $("long-entry").textContent = p ? formatMoney(p.entryPrice) : "—";
+  $("long-fee").textContent = p ? `fee paid: ${formatMoney(p.feePaid)}` : "7% entry fee";
 
-  if (!position) {
-    symbolEl.textContent = "—";
-    investedEl.textContent = "0";
-    currentEl.textContent = "0";
-    pnlEl.textContent = "0";
-    feeEl.textContent = "7% entry fee";
-    statusEl.textContent = "No open position.";
-    sellBtn.disabled = true;
+  const lastTickEl = $("long-lasttick");
+  if (!p) {
+    lastTickEl.className = "muted";
+    lastTickEl.textContent = "—";
+    $("long-pnl").textContent = "0";
+    $("long-sell-btn").disabled = true;
+    $("long-status").textContent = "No open long position.";
     return;
   }
+  lastTickEl.className = pctClass(p.lastMovePct);
+  lastTickEl.textContent = formatPct(p.lastMovePct);
 
-  symbolEl.textContent = position.symbol || "SIM";
-  investedEl.textContent = formatMoney(position.amount);
-  currentEl.textContent = formatMoney(position.currentValue);
-  pnlEl.textContent = `${position.pctDelta >= 0 ? "+" : ""}${position.pctDelta.toFixed(2)}% / ${formatMoney(position.unrealized)}`;
-  feeEl.textContent = `entry fee: ${formatMoney(position.feePaid)}`;
-  statusEl.textContent = "Position is updated every 3 seconds, capped at ±10% from post-fee principal.";
-  sellBtn.disabled = false;
+  $("long-pnl").textContent = `${formatPct(p.pctDelta)} / ${formatMoney(p.unrealized)}`;
+  $("long-sell-btn").disabled = false;
+  $("long-status").textContent = "Long: profit when price rises. Moves every 3 seconds.";
+}
+
+function renderShortPosition(p){
+  $("short-symbol").textContent = p?.symbol || "—";
+  $("short-invested").textContent = formatMoney(p?.amount ?? 0);
+  $("short-current").textContent = formatMoney(p?.currentValue ?? 0);
+  $("short-price").textContent = formatMoney(p?.currentPrice ?? 0);
+  $("short-price-entry").textContent = p ? formatMoney(p.entryPrice) : "—";
+  $("short-entry").textContent = p ? formatMoney(p.entryPrice) : "—";
+  $("short-fee").textContent = p ? `fee paid: ${formatMoney(p.feePaid)}` : "8% borrow fee";
+
+  const lastTickEl = $("short-lasttick");
+  if (!p) {
+    lastTickEl.className = "muted";
+    lastTickEl.textContent = "—";
+    $("short-pnl").textContent = "0";
+    $("short-sell-btn").disabled = true;
+    $("short-status").textContent = "No open short position.";
+    return;
+  }
+  lastTickEl.className = pctClass(p.lastMovePct);
+  lastTickEl.textContent = formatPct(p.lastMovePct);
+
+  $("short-pnl").textContent = `${formatPct(p.pctDelta)} / ${formatMoney(p.unrealized)}`;
+  $("short-sell-btn").disabled = false;
+  $("short-status").textContent = "Short: profit when price falls. Uncapped risk.";
 }
 
 function renderState(state){
@@ -646,7 +761,8 @@ function renderState(state){
     if (btnEl) btnEl.disabled = money < cost;
   }
 
-  renderPosition(state.position || null);
+  renderLongPosition(state.longPosition || null);
+  renderShortPosition(state.shortPosition || null);
 }
 
 async function refreshLeaderboard(){
@@ -660,6 +776,7 @@ async function refreshLeaderboard(){
     setLbStatus(false, "leaderboard:// error: " + e.message);
   }
 }
+
 async function refreshState(){
   try{
     const state = await getState();
@@ -668,6 +785,7 @@ async function refreshState(){
     setStatus(false, "state:// error: " + e.message);
   }
 }
+
 async function doClick(){
   try{
     $("click-btn").disabled = true;
@@ -682,6 +800,7 @@ async function doClick(){
     $("click-btn").disabled = false;
   }
 }
+
 async function doBuy(upgradeId){
   try{
     setStatus(true, `buy://${upgradeId} pending…`);
@@ -693,32 +812,31 @@ async function doBuy(upgradeId){
     setStatus(false, "buy:// failed: " + e.message);
   }
 }
-async function doTrade(action){
+
+async function doTrade(side, action){
   try{
-    const amount = Number($("trade-amount").value || 0);
+    const amountEl = side === "short" ? $("short-amount") : $("long-amount");
+    const amount = Number(amountEl?.value || 0);
 
     if (action === "buy" && (!Number.isFinite(amount) || amount < 10)) {
-      setStatus(false, "trade:// minimum investment is 10");
+      setStatus(false, `trade://${side} minimum is 10`);
       return;
     }
 
-    setStatus(true, `trade://${action} pending…`);
-    const state = await tradePosition(action, action === "buy" ? amount : null);
+    setStatus(true, `trade://${side}/${action} pending…`);
+    const state = await tradePosition(side, action, action === "buy" ? amount : null);
     renderState(state);
-
-    if (action === "buy") {
-      setStatus(true, `trade:// buy ok`);
-    } else {
-      setStatus(true, `trade:// sell ok`);
-    }
-
+    setStatus(true, `trade://${side}/${action} ok`);
     await refreshLeaderboard();
   }catch(e){
-    setStatus(false, "trade:// failed: " + e.message);
+    setStatus(false, `trade:// failed: ${e.message}`);
   }
 }
 
-/** Title “decode” animation */
+// ===== Title animation + candles + ticker are unchanged from your current file =====
+// (Keeping them as-is to avoid another huge paste; do not change those sections.)
+
+// --- Title “decode” animation ---
 function animateTitle(){
   const target = "THE MARKET NEVER SLEEPS.";
   const el = $("title-anim");
@@ -740,8 +858,6 @@ function animateTitle(){
   }
   tick();
 }
-
-/** Candles */
 function startCandles() {
   const canvas = $("bg");
   const ctx = canvas.getContext("2d");
@@ -1003,72 +1119,6 @@ function startCandles() {
   frame();
 }
 
-/** Boot */
-async function init(){
-  $("callback-preview").textContent = redirectUri();
-  animateTitle();
-  startCandles();
-  startTicker();
-
-  $("login-btn").addEventListener("click", startLogin);
-  $("logout-btn").addEventListener("click", logout);
-  $("refresh-btn").addEventListener("click", async () => {
-    setStatus(true, "state:// refreshing…");
-    await refreshState();
-    await refreshLeaderboard();
-    setStatus(true, "state:// ok");
-  });
-  $("click-btn").addEventListener("click", doClick);
-
-  ["cursor","dayTrader","generator","scalper","speculator","stockbroker"].forEach((id) => {
-    const el = document.getElementById(`buy-${id}`);
-    if (el) el.addEventListener("click", () => doBuy(id));
-  });
-
-  $("buy-position-btn").addEventListener("click", () => doTrade("buy"));
-  $("sell-position-btn").addEventListener("click", () => doTrade("sell"));
-
-  $("learn-btn").addEventListener("click", () => { window.location.href = "./how-it-works.html"; });
-
-  const params = getParams();
-  if (params.error){
-    showLoggedOut();
-    $("login-help").classList.add("err");
-    $("login-help").textContent = "login:// error: " + (params.error_description || params.error);
-    cleanUrl();
-    return;
-  }
-
-  if (params.code){
-    try{
-      await exchangeCodeForTokens(params.code);
-      cleanUrl();
-    }catch(e){
-      showLoggedOut();
-      $("login-help").classList.add("err");
-      $("login-help").textContent = "login:// failed: " + e.message;
-      cleanUrl();
-      return;
-    }
-  }
-
-  if (storage.idToken || storage.accessToken){
-    showLoggedIn();
-    setStatus(true, "state:// syncing…");
-    await refreshState();
-    await refreshLeaderboard();
-    setStatus(true, "ready:// ok");
-
-    if (leaderboardTimer) clearInterval(leaderboardTimer);
-    leaderboardTimer = setInterval(refreshLeaderboard, leaderboardPollMs);
-
-    if (idleTimer) clearInterval(idleTimer);
-    idleTimer = setInterval(refreshState, idleTickMs);
-  } else {
-    showLoggedOut();
-  }
-}
-
 function startTicker() {
   const track = $("ticker-track");
   if (!track) return;
@@ -1183,6 +1233,74 @@ function startTicker() {
       appendOne();
     }
   });
+}
+async function init(){
+  $("callback-preview").textContent = redirectUri();
+  animateTitle();
+  startCandles();
+  startTicker();
+
+  $("login-btn").addEventListener("click", startLogin);
+  $("logout-btn").addEventListener("click", logout);
+
+  $("refresh-btn").addEventListener("click", async () => {
+    setStatus(true, "state:// refreshing…");
+    await refreshState();
+    await refreshLeaderboard();
+    setStatus(true, "state:// ok");
+  });
+
+  $("click-btn").addEventListener("click", doClick);
+
+  ["cursor","dayTrader","generator","scalper","speculator","stockbroker"].forEach((id) => {
+    const el = document.getElementById(`buy-${id}`);
+    if (el) el.addEventListener("click", () => doBuy(id));
+  });
+
+  $("long-buy-btn").addEventListener("click", () => doTrade("long", "buy"));
+  $("long-sell-btn").addEventListener("click", () => doTrade("long", "sell"));
+  $("short-buy-btn").addEventListener("click", () => doTrade("short", "buy"));
+  $("short-sell-btn").addEventListener("click", () => doTrade("short", "sell"));
+
+  $("learn-btn").addEventListener("click", () => { window.location.href = "./how-it-works.html"; });
+
+  const params = getParams();
+  if (params.error){
+    showLoggedOut();
+    $("login-help").classList.add("err");
+    $("login-help").textContent = "login:// error: " + (params.error_description || params.error);
+    cleanUrl();
+    return;
+  }
+
+  if (params.code){
+    try{
+      await exchangeCodeForTokens(params.code);
+      cleanUrl();
+    }catch(e){
+      showLoggedOut();
+      $("login-help").classList.add("err");
+      $("login-help").textContent = "login:// failed: " + e.message;
+      cleanUrl();
+      return;
+    }
+  }
+
+  if (storage.idToken || storage.accessToken){
+    showLoggedIn();
+    setStatus(true, "state:// syncing…");
+    await refreshState();
+    await refreshLeaderboard();
+    setStatus(true, "ready:// ok");
+
+    if (leaderboardTimer) clearInterval(leaderboardTimer);
+    leaderboardTimer = setInterval(refreshLeaderboard, leaderboardPollMs);
+
+    if (idleTimer) clearInterval(idleTimer);
+    idleTimer = setInterval(refreshState, idleTickMs);
+  } else {
+    showLoggedOut();
+  }
 }
 
 init();
