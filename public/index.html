@@ -46,9 +46,7 @@
             <h2 class="panel-title">Connect Terminal</h2>
             <p class="panel-sub">Login to trade, upgrade, and climb the leaderboard.</p>
           </div>
-          <div class="pill">
-            callback <span class="kbd" id="callback-preview"></span>
-          </div>
+          <div class="pill">secure sign-in</div>
         </div>
 
         <div class="panel-body">
@@ -67,7 +65,7 @@
           </div>
 
           <div class="status" id="login-help" style="margin-top:14px;">
-            Cognito callback + logout URLs must match exactly (including trailing slash).
+            Pro move: build stable passive income first, then use trades to accelerate your lead.
           </div>
         </div>
       </div>
@@ -82,9 +80,9 @@
         </div>
         <div class="panel-body">
           <div class="card">
-            <h4>Tip</h4>
+            <h4>Strategy Tip</h4>
             <div class="small">
-              After deployment, add <span class="mono">https://yourdomain.com/</span> to Cognito callback and sign-out URLs.
+              Mix steady building upgrades with selective trades—consistent cashflow gives you room to take smarter risks.
             </div>
           </div>
           <div class="hr"></div>
@@ -1235,7 +1233,6 @@ function startTicker() {
   });
 }
 async function init(){
-  $("callback-preview").textContent = redirectUri();
   animateTitle();
   startCandles();
   startTicker();
