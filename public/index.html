@@ -188,7 +188,7 @@
             <div class="card">
               <div class="row" style="justify-content:space-between;">
                 <div>
-                  <div class="mono" style="font-weight:800;">generator</div>
+                  <div class="mono" style="font-weight:800;">swing trader</div>
                   <div class="small muted">+2 pps</div>
                 </div>
                 <div class="mono muted">lvl <span id="lvl-generator">0</span></div>
@@ -473,12 +473,12 @@ const leaderboardPollMs = 4000;
 const idleTickMs = 1200;
 
 const UPGRADES = {
-  cursor:      { baseCost: 10,   growth: 1.15, ppcAdd: 1, ppsAdd: 0  },
-  dayTrader:   { baseCost: 60,   growth: 1.16, ppcAdd: 0, ppsAdd: 1  },
-  generator:   { baseCost: 100,  growth: 1.20, ppcAdd: 0, ppsAdd: 2  },
-  scalper:     { baseCost: 300,  growth: 1.22, ppcAdd: 0, ppsAdd: 5  },
-  speculator:  { baseCost: 1800, growth: 1.24, ppcAdd: 0, ppsAdd: 30 },
-  stockbroker: { baseCost: 6000, growth: 1.26, ppcAdd: 0, ppsAdd: 80 },
+  cursor:      { baseCost: 10,       growth: 1.15, ppcAdd: 1, ppsAdd: 0  },
+  dayTrader:   { baseCost: 500,      growth: 1.18, ppcAdd: 0, ppsAdd: 1  },
+  generator:   { baseCost: 15000,     growth: 1.20, ppcAdd: 0, ppsAdd: 2  },
+  scalper:     { baseCost: 250000,    growth: 1.22, ppcAdd: 0, ppsAdd: 5  },
+  speculator:  { baseCost: 2000000,   growth: 1.24, ppcAdd: 0, ppsAdd: 30 },
+  stockbroker: { baseCost: 5000000,  growth: 1.26, ppcAdd: 0, ppsAdd: 80 },
 };
 
 function nextCost(id, level){
