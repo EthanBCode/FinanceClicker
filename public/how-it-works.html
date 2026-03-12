@@ -126,17 +126,17 @@
    |  verified JWT
    v
 [API Gateway + Cognito Authorizer]
-   |---------------|---------------|---------------|---------------|----------------|
-   v               v               v               v                v
-[Lambda /click] [Lambda /buy] [Lambda /trade] [Lambda /state] [Lambda /leaderboard]
-   | settle active  | validate       | execute long / | hydrate trusted | rank and return
+   |-----------------|---------------|----------------|-----------------|----------------|
+   v                 v               v                v                 v
+[Lambda /click] [Lambda /buy] [Lambda /trade]  [Lambda /state]  [Lambda /leaderboard]
+   | settle active  | validate       | execute long   | hydrate trusted | rank and return
    | + idle gains   | economy buys   | short actions  | player state    | top players
    |__________________________ reads/writes single player state _________________________|
-                                   v
-                    [DynamoDB: Player + Leaderboard data]
-                                   |
-                                   v
-                       [JSON response back to browser]
+                                            v
+                          [DynamoDB: Player + Leaderboard data]
+                                            |
+                                            v
+                             [JSON response back to browser]
         </pre>
         <p class="diagram-caption">
           Flow summary: Cognito verifies identity, API Gateway authorizes each route, Lambdas enforce clicker/trading
