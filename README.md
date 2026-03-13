@@ -114,9 +114,11 @@ This project is a static site. No build step is required for normal local use.
 
 Run a simple static server from the repository root:
 ```bash
-python3 -m http.server 8080
+python3 -m http.server 5500
 ```
 
-Then open [http://localhost:8080/public/index.html](http://localhost:8080/public/index.html).
+Note: Using port 5500 is important for Amazon Cognito callbacks to allow you to login.
+
+Then open [http://localhost:5500/public/index.html](http://localhost:5500/public/index.html).
 
 Production deployment: [https://financeclicker.net](https://financeclicker.net).
