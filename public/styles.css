@@ -167,6 +167,70 @@ canvas#bg{
   padding: 24px 16px 80px;
 }
 
+
+.leaderboard-panel{
+  margin-bottom: 0;
+}
+
+.gameplay-main-grid{
+  display:grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap:16px;
+  align-items:start;
+}
+
+.gameplay-trade-btn{
+  width:92%;
+  margin:14px auto 0;
+  display:block;
+  min-height:60px;
+  font-size:17px;
+  font-weight:800;
+  letter-spacing:0.03em;
+  text-transform:uppercase;
+  border-width:2px;
+  border-color: rgba(55,242,161,0.38);
+  box-shadow: 0 12px 26px rgba(0,0,0,.45), 0 0 24px rgba(55,242,161,0.16);
+}
+
+.gameplay-trade-btn:hover{
+  box-shadow: 0 16px 34px rgba(0,0,0,.5), 0 0 30px rgba(55,242,161,0.24);
+}
+
+.upgrades-panel-body{
+  max-height: 540px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.upgrades-panel-body::-webkit-scrollbar{
+  width: 8px;
+}
+
+.upgrades-panel-body::-webkit-scrollbar-thumb{
+  background: rgba(55,242,161,0.25);
+  border-radius: 999px;
+}
+
+.leaderboard-more-btn{
+  margin-top: 6px;
+}
+
+@media (max-width: 1100px){
+  .gameplay-main-grid{
+    grid-template-columns: 1fr;
+  }
+
+  .upgrades-panel-body{
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+
+  .gameplay-trade-btn{
+    width:100%;
+  }
+}
 .grid{
   display:grid;
   grid-template-columns: 1.2fr 0.8fr;

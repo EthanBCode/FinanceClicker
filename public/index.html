@@ -94,7 +94,38 @@
     </section>
 
     <section id="logged-in" class="hidden">
-      <div class="grid">
+      <div class="panel leaderboard-panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title" style="font-size:20px;">Live Leaderboard</h2>
+            <p class="panel-sub">top traders by points</p>
+          </div>
+          <div class="pill" id="lb-pill">—</div>
+        </div>
+
+        <div class="panel-body">
+          <div class="tablewrap">
+            <table aria-label="leaderboard">
+              <thead>
+                <tr>
+                  <th style="width:64px;">#</th>
+                  <th>player</th>
+                  <th class="right">points</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboard-body">
+                <tr><td colspan="3" class="muted">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="status" id="lb-status">Not connected.</div>
+        </div>
+      </div>
+
+      <div style="height:16px"></div>
+
+      <div class="gameplay-main-grid">
         <div class="panel">
           <div class="panel-header">
             <div>
@@ -103,7 +134,6 @@
             </div>
             <div class="row" style="gap:8px; justify-content:flex-end;">
               <button class="btn secondary" id="refresh-btn">refresh</button>
-              <button class="btn" id="click-btn">execute_trade (+)</button>
             </div>
           </div>
 
@@ -136,11 +166,13 @@
               </div>
             </div>
 
+            <button class="btn gameplay-trade-btn" id="click-btn">execute_trade (+)</button>
+
             <div class="status" id="api-status">Ready.</div>
           </div>
         </div>
 
-        <div class="panel">
+        <div class="panel upgrades-panel">
           <div class="panel-header">
             <div>
               <h2 class="panel-title">Upgrades</h2>
@@ -149,7 +181,7 @@
             <div class="pill">shop <span class="mono">online</span></div>
           </div>
 
-          <div class="panel-body">
+          <div class="panel-body upgrades-panel-body">
             <!-- (Upgrades unchanged) -->
             <div class="card">
               <div class="row" style="justify-content:space-between;">
@@ -249,7 +281,6 @@
           </div>
         </div>
       </div>
-
       <div style="height:16px"></div>
 
       <!-- LONG -->
@@ -424,36 +455,6 @@
         </div>
       </div>
 
-      <div style="height:16px"></div>
-
-      <div class="panel">
-        <div class="panel-header">
-          <div>
-            <h2 class="panel-title" style="font-size:20px;">Live Leaderboard</h2>
-            <p class="panel-sub">top traders by points</p>
-          </div>
-          <div class="pill" id="lb-pill">—</div>
-        </div>
-
-        <div class="panel-body">
-          <div class="tablewrap">
-            <table aria-label="leaderboard">
-              <thead>
-                <tr>
-                  <th style="width:64px;">#</th>
-                  <th>player</th>
-                  <th class="right">points</th>
-                </tr>
-              </thead>
-              <tbody id="leaderboard-body">
-                <tr><td colspan="3" class="muted">Loading…</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="status" id="lb-status">Not connected.</div>
-        </div>
-      </div>
     </section>
   </main>
 
@@ -636,6 +637,10 @@ const getLeaderboard = () => apiFetch(endpoints.leaderboard, { method: "GET" });
 // ===== UI glue =====
 let leaderboardTimer = null;
 let idleTimer = null;
+let leaderboardItems = [];
+let leaderboardVisibleCount = 10;
+const leaderboardStep = 10;
+const leaderboardMax = 50;
 
 function setEnv(connected){
   $("env-text").textContent = connected ? "connected" : "disconnected";
@@ -661,26 +666,55 @@ function showLoggedOut(){
   $("logged-in").classList.add("hidden");
   $("logged-out").classList.remove("hidden");
   setEnv(false);
+  leaderboardVisibleCount = 10;
+  leaderboardItems = [];
   $("leaderboard-body").innerHTML = `<tr><td colspan="3" class="muted">Sign in to load the leaderboard.</td></tr>`;
 }
 function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[c]));
+}
+function normalizeLeaderboardItems(items){
+  return items
+    .map((x) => ({
+      name: x?.name ?? "unknown",
+      points: Number(x?.points ?? 0),
+    }))
+    .filter((x) => Number.isFinite(x.points))
+    .sort((a, b) => b.points - a.points)
+    .slice(0, leaderboardMax);
 }
 function renderLeaderboard(items){
   if (!Array.isArray(items)){
     $("leaderboard-body").innerHTML = `<tr><td colspan="3" class="muted">Unexpected format.</td></tr>`;
     return;
   }
-  const rows = items.slice(0, 50).map((x,i)=>{
-    const name = x.name ?? "unknown";
-    const pts = Number(x.points ?? 0);
+
+  leaderboardItems = normalizeLeaderboardItems(items);
+  leaderboardVisibleCount = Math.max(leaderboardStep, Math.min(leaderboardVisibleCount, leaderboardMax));
+  const visibleItems = leaderboardItems.slice(0, leaderboardVisibleCount);
+
+  const rows = visibleItems.map((x,i)=>{
+    const name = x.name;
+    const pts = x.points;
     return `<tr>
       <td class="muted">${i+1}</td>
       <td><b>${escapeHtml(name)}</b></td>
-      <td class="right">${Number.isFinite(pts)?pts:0}</td>
+      <td class="right">${pts}</td>
     </tr>`;
   }).join("");
-  $("leaderboard-body").innerHTML = rows || `<tr><td colspan="3" class="muted">No scores yet.</td></tr>`;
+
+  if (!rows){
+    $("leaderboard-body").innerHTML = `<tr><td colspan="3" class="muted">No scores yet.</td></tr>`;
+    return;
+  }
+
+  const canShowMore = leaderboardVisibleCount < leaderboardItems.length;
+  const nextCount = Math.min(leaderboardItems.length, leaderboardVisibleCount + leaderboardStep);
+  const controls = canShowMore
+    ? `<tr class="lb-more-row"><td colspan="3" class="right"><button class="btn secondary leaderboard-more-btn" id="lb-more-btn" type="button">show top ${nextCount}</button></td></tr>`
+    : "";
+
+  $("leaderboard-body").innerHTML = rows + controls;
 }
 
 function renderLongPosition(p){
@@ -1239,6 +1273,13 @@ async function init(){
 
   $("login-btn").addEventListener("click", startLogin);
   $("logout-btn").addEventListener("click", logout);
+
+  $("leaderboard-body").addEventListener("click", (e)=>{
+    if (e.target && e.target.id === "lb-more-btn"){
+      leaderboardVisibleCount = Math.min(leaderboardVisibleCount + leaderboardStep, leaderboardMax);
+      renderLeaderboard(leaderboardItems);
+    }
+  });
 
   $("refresh-btn").addEventListener("click", async () => {
     setStatus(true, "state:// refreshing…");
