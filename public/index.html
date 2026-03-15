@@ -39,56 +39,19 @@
   </header>
 
   <main class="container">
-    <section id="logged-out" class="grid">
-      <div class="panel">
-        <div class="panel-header">
-          <div>
-            <h2 class="panel-title">Connect Terminal</h2>
-            <p class="panel-sub">Login to trade, upgrade, and climb the leaderboard.</p>
-          </div>
-          <div class="pill">secure sign-in</div>
+    <section id="logged-out" class="grid landing-grid">
+      <div class="landing-hero">
+        <div class="mono muted landing-prompt">welcome@terminal:~$</div>
+        <h1 class="big-title terminal-title" id="title-anim"></h1>
+        <p class="landing-copy">login to trade and climb the leaderboard.</p>
+
+        <div class="landing-actions">
+          <button class="btn landing-login-btn tilt-btn" id="login-btn">connect / login</button>
+          <button class="btn secondary landing-learn-btn" id="learn-btn" type="button">how it works</button>
         </div>
 
-        <div class="panel-body">
-          <div class="mono muted">welcome@terminal:~$</div>
-          <h1 class="big-title terminal-title caret" id="title-anim"></h1>
-          <p class="muted" style="margin-top:10px; max-width: 64ch;">
-            Click to gain points. Buy upgrades to increase points per click
-            and points per second and make trades, buying and shorting stocks. Offline progress is credited on the next request.
-          </p>
-
-          <div class="hr"></div>
-
-          <div class="row">
-            <button class="btn" id="login-btn">connect / login</button>
-            <button class="btn secondary" id="learn-btn" type="button">how it works</button>
-          </div>
-
-          <div class="status" id="login-help" style="margin-top:14px;">
-            Tip: build stable passive income first, then use trades to accelerate your lead.
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-header">
-          <div>
-            <h2 class="panel-title">Market Feed</h2>
-            <p class="panel-sub">visual-only background candles • gameplay uses AWS points</p>
-          </div>
-          <div class="pill">mode <span class="mono">SIM</span></div>
-        </div>
-        <div class="panel-body">
-          <div class="card">
-            <h4>Strategy Tip</h4>
-            <div class="small">
-              Mix steady building upgrades with selective trades—consistent cashflow gives you room to take smarter risks.
-            </div>
-          </div>
-          <div class="hr"></div>
-          <div class="muted mono" style="font-size:12px;">
-            background chart is generated in-browser for aesthetics.
-          </div>
+        <div class="status" id="login-help" style="margin-top:18px;">
+          Tip: build stable passive income first, then use trades to accelerate your lead.
         </div>
       </div>
     </section>
@@ -166,7 +129,7 @@
               </div>
             </div>
 
-            <button class="btn gameplay-trade-btn" id="click-btn">execute_trade (+)</button>
+            <button class="btn gameplay-trade-btn tilt-btn" id="click-btn">execute_trade (+)</button>
 
             <div class="status" id="api-status">Ready.</div>
           </div>
@@ -178,7 +141,7 @@
               <h2 class="panel-title">Upgrades</h2>
               <p class="panel-sub">buy:// increases ppc / pps</p>
             </div>
-            <div class="pill">shop <span class="mono">online</span></div>
+            
           </div>
 
           <div class="panel-body upgrades-panel-body">
@@ -290,7 +253,7 @@
             <h2 class="panel-title" style="font-size:20px;">Paper Trade — Long</h2>
             <p class="panel-sub">price moves every 3s • step ∈ [-1%,+1%] • capped ±10% • 7% fee</p>
           </div>
-          <div class="pill">market <span class="mono">SIM</span></div>
+          
         </div>
 
         <div class="panel-body">
@@ -377,7 +340,7 @@
             <h2 class="panel-title" style="font-size:20px;">Paper Trade — Short</h2>
             <p class="panel-sub">profit if price falls • step ∈ [-1.1%,+1.1%] • uncapped • 8% borrow fee</p>
           </div>
-          <div class="pill">risk <span class="mono">HIGH</span></div>
+          
         </div>
 
         <div class="panel-body">
@@ -457,6 +420,14 @@
 
     </section>
   </main>
+
+  <div class="screen-loader" id="landing-loader" aria-hidden="true">
+    <div class="loader-desktop" id="landing-loader-desktop"></div>
+  </div>
+
+  <div class="screen-loader" id="gameplay-loader" aria-hidden="true">
+    <div class="loader-desktop" id="gameplay-loader-desktop"></div>
+  </div>
 
 <script>
 const cognito = {
@@ -640,6 +611,7 @@ let idleTimer = null;
 let leaderboardItems = [];
 let leaderboardVisibleCount = 10;
 const leaderboardStep = 10;
+let activeTradeAudio = null;
 const leaderboardMax = 50;
 
 function setEnv(connected){
@@ -661,6 +633,7 @@ function showLoggedIn(){
   $("logged-out").classList.add("hidden");
   $("logged-in").classList.remove("hidden");
   setEnv(true);
+  runGameplayLoader();
 }
 function showLoggedOut(){
   $("logged-in").classList.add("hidden");
@@ -819,17 +792,24 @@ async function refreshState(){
 }
 
 async function doClick(){
+  const tradeBtn = $("click-btn");
   try{
-    $("click-btn").disabled = true;
+    tradeBtn.disabled = true;
+    tradeBtn.classList.add("btn-pressed");
+    playTradeBeep();
     setStatus(true, "trade:// executing…");
     const state = await clickOnce();
     renderState(state);
+    tradeBtn.classList.remove("btn-bounce");
+    void tradeBtn.offsetWidth;
+    tradeBtn.classList.add("btn-bounce");
     setStatus(true, `trade:// ok (idle +${state?.gained?.idle ?? 0}, click +${state?.gained?.click ?? 1})`);
     await refreshLeaderboard();
   }catch(e){
     setStatus(false, "trade:// failed: " + e.message);
   }finally{
-    $("click-btn").disabled = false;
+    setTimeout(() => tradeBtn.classList.remove("btn-pressed"), 50);
+    tradeBtn.disabled = false;
   }
 }
 
@@ -865,6 +845,246 @@ async function doTrade(side, action){
   }
 }
 
+
+function setupInteractiveButtons(){
+  const allButtons = Array.from(document.querySelectorAll(".btn"));
+
+  allButtons.forEach((btn) => {
+    btn.addEventListener("mousedown", () => btn.classList.add("btn-pressed"));
+    btn.addEventListener("mouseup", () => btn.classList.remove("btn-pressed"));
+    btn.addEventListener("mouseleave", () => {
+      btn.classList.remove("btn-pressed");
+      if (!btn.classList.contains("tilt-btn")) return;
+      btn.style.setProperty("--btn-tilt-x", "0deg");
+      btn.style.setProperty("--btn-tilt-y", "0deg");
+    });
+
+    if (btn.classList.contains("tilt-btn")){
+      btn.addEventListener("mousemove", (e) => {
+        if (!btn.matches(":hover")) return;
+        const rect = btn.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+        const tiltX = (0.5 - y) * 9;
+        const tiltY = (x - 0.5) * 11;
+        btn.style.setProperty("--btn-tilt-x", `${tiltX.toFixed(2)}deg`);
+        btn.style.setProperty("--btn-tilt-y", `${tiltY.toFixed(2)}deg`);
+      });
+    }
+  });
+}
+
+function playTradeBeep(){
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return;
+
+  try {
+    if (!activeTradeAudio) activeTradeAudio = new AudioCtx();
+    const ctx = activeTradeAudio;
+    if (ctx.state === "suspended") ctx.resume();
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "square";
+    osc.frequency.setValueAtTime(620, now);
+    osc.frequency.exponentialRampToValueAtTime(790, now + 0.06);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.03, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  } catch {
+    return;
+  }
+}
+
+function showLoader(id){
+  const el = $(id);
+  if (!el) return;
+  el.classList.add("visible");
+}
+
+function hideLoader(id){
+  const el = $(id);
+  if (!el) return;
+  el.classList.remove("visible");
+}
+
+const loaderTimers = new Set();
+
+function clearLoaderTimers(){
+  loaderTimers.forEach((t) => clearInterval(t));
+  loaderTimers.clear();
+}
+
+function windowTemplate(title, subtitle, mode){
+  if (mode === "rect") {
+    return `
+      <div class="term-line">$ ${subtitle}</div>
+      <div class="term-line muted">initializing modules...</div>
+      <div class="term-progress-rect"><div class="term-progress-rect-fill"></div></div>
+      <div class="term-line" data-progress-text>0%</div>
+    `;
+  }
+  if (mode === "hash") {
+    return `
+      <div class="term-line">> ${subtitle}</div>
+      <div class="term-line muted">installing packages</div>
+      <div class="term-line term-hash" data-hash>[--------------------]</div>
+      <div class="term-line" data-progress-text>0/20 blocks</div>
+    `;
+  }
+  return `
+    <div class="term-line"># ${subtitle}</div>
+    <div class="term-line muted">running startup commands</div>
+    <div class="term-line"><span data-spinner>|</span> <span data-command>checking runtime</span></div>
+    <div class="term-line" data-progress-text>0%</div>
+  `;
+}
+
+function buildLoaderWindows(desktopId, config){
+  const desktop = $(desktopId);
+  if (!desktop) return [];
+
+  desktop.innerHTML = "";
+  const windows = config.map((item, idx) => {
+    const win = document.createElement("div");
+    win.className = "term-window";
+    win.style.left = `${8 + idx * 26}%`;
+    win.style.top = `${8 + (idx % 2) * 14}%`;
+    win.style.zIndex = String(10 + idx);
+    win.innerHTML = `
+      <div class="term-titlebar" data-drag-handle>
+        <div class="term-title">${item.title}</div>
+        <div class="term-controls">
+          <button type="button" class="term-control-btn" aria-label="minimize">—</button>
+          <button type="button" class="term-control-btn" aria-label="close">✕</button>
+        </div>
+      </div>
+      <div class="term-body">${windowTemplate(item.title, item.subtitle, item.mode)}</div>
+    `;
+
+    const closeBtn = win.querySelector('.term-control-btn[aria-label="close"]');
+    closeBtn.addEventListener('click', () => { win.style.display = 'none'; });
+
+    desktop.appendChild(win);
+    attachDrag(win, desktop);
+    return { el: win, mode: item.mode, commands: item.commands || [] };
+  });
+
+  return windows;
+}
+
+function attachDrag(win, desktop){
+  const handle = win.querySelector('[data-drag-handle]');
+  if (!handle) return;
+
+  let dragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  handle.addEventListener('mousedown', (e) => {
+    dragging = true;
+    const rect = win.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    win.style.zIndex = String(Number(win.style.zIndex || 1) + 20);
+    handle.style.cursor = 'grabbing';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const dRect = desktop.getBoundingClientRect();
+    const x = Math.min(Math.max(0, e.clientX - dRect.left - offsetX), dRect.width - win.offsetWidth);
+    const y = Math.min(Math.max(0, e.clientY - dRect.top - offsetY), dRect.height - win.offsetHeight);
+    win.style.left = `${(x / dRect.width) * 100}%`;
+    win.style.top = `${(y / dRect.height) * 100}%`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    dragging = false;
+    handle.style.cursor = 'grab';
+  });
+}
+
+function animateWindow(win, durationMs){
+  const start = performance.now();
+  const fill = win.el.querySelector('.term-progress-rect-fill');
+  const hashEl = win.el.querySelector('[data-hash]');
+  const spinner = win.el.querySelector('[data-spinner]');
+  const command = win.el.querySelector('[data-command]');
+  const progressText = win.el.querySelector('[data-progress-text]');
+  const commands = win.commands.length ? win.commands : ["loading", "starting", "finishing"];
+  const spinnerChars = ['|','/','-','\\'];
+
+  const timer = setInterval(() => {
+    const elapsed = performance.now() - start;
+    const t = Math.min(1, elapsed / durationMs);
+    const pct = Math.floor(t * 100);
+
+    if (fill) fill.style.width = `${pct}%`;
+    if (hashEl) {
+      const total = 20;
+      const done = Math.round(t * total);
+      hashEl.textContent = `[${'#'.repeat(done)}${'-'.repeat(total-done)}]`;
+    }
+
+    if (spinner && command) {
+      const index = Math.floor(elapsed / 120) % spinnerChars.length;
+      spinner.textContent = spinnerChars[index];
+      const cmdIndex = Math.min(commands.length - 1, Math.floor(t * commands.length));
+      command.textContent = commands[cmdIndex];
+    }
+
+    if (progressText) {
+      progressText.textContent = hashEl
+        ? `${Math.round((pct/100)*20)}/20 blocks`
+        : `${pct}%`;
+    }
+
+    if (t >= 1) {
+      clearInterval(timer);
+      loaderTimers.delete(timer);
+    }
+  }, 80);
+
+  loaderTimers.add(timer);
+}
+
+function runTerminalLoader(loaderId, desktopId, windowsConfig){
+  clearLoaderTimers();
+  const windows = buildLoaderWindows(desktopId, windowsConfig);
+  showLoader(loaderId);
+  windows.forEach((w) => animateWindow(w, 4000));
+
+  setTimeout(() => {
+    hideLoader(loaderId);
+    clearLoaderTimers();
+  }, 4000);
+}
+
+function runLandingLoader(){
+  runTerminalLoader("landing-loader", "landing-loader-desktop", [
+    { title: "terminal:// build", subtitle: "npm run build", mode: "rect", commands: ["compile css", "bundle assets", "write output"] },
+    { title: "installer:// deps", subtitle: "node_modules sync", mode: "hash", commands: ["resolve", "download", "verify", "ready"] },
+    { title: "runtime:// boot", subtitle: "start app", mode: "spinner", commands: ["checking runtime", "loading auth", "mounting ui", "connected"] },
+  ]);
+}
+
+function runGameplayLoader(){
+  runTerminalLoader("gameplay-loader", "gameplay-loader-desktop", [
+    { title: "state:// sync", subtitle: "fetch /state", mode: "rect", commands: ["request", "apply diff", "complete"] },
+    { title: "leaderboard:// hydrate", subtitle: "fetch /leaderboard", mode: "hash", commands: ["pull ranks", "normalize", "render"] },
+    { title: "trade-engine:// prime", subtitle: "warm handlers", mode: "spinner", commands: ["binding inputs", "warming cache", "ready to trade"] },
+  ]);
+}
+
 // ===== Title animation + candles + ticker are unchanged from your current file =====
 // (Keeping them as-is to avoid another huge paste; do not change those sections.)
 
@@ -873,17 +1093,20 @@ function animateTitle(){
   const target = "THE MARKET NEVER SLEEPS.";
   const el = $("title-anim");
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%*_-+=:;./";
+  const maxWidth = target.length;
+  el.style.minHeight = "1.2em";
   let i = 0;
   function tick(){
     const settled = target.slice(0, i);
     const remain = target.slice(i);
-    const n = Math.min(12, remain.length);
+    const n = Math.min(8, remain.length);
     let scr = "";
     for (let k=0;k<n;k++) scr += chars[(Math.random()*chars.length)|0];
-    el.textContent = settled + scr;
+    const pad = " ".repeat(Math.max(0, maxWidth - (settled.length + scr.length)));
+    el.textContent = settled + scr + pad;
     if (i < target.length){
-      i += Math.random() < 0.35 ? 0 : 1;
-      setTimeout(tick, 35 + Math.random()*35);
+      i += Math.random() < 0.3 ? 0 : 1;
+      setTimeout(tick, 42 + Math.random()*45);
     }else{
       el.textContent = target;
     }
@@ -1267,6 +1490,7 @@ function startTicker() {
   });
 }
 async function init(){
+  runLandingLoader();
   animateTitle();
   startCandles();
   startTicker();
@@ -1289,6 +1513,7 @@ async function init(){
   });
 
   $("click-btn").addEventListener("click", doClick);
+  setupInteractiveButtons();
 
   ["cursor","dayTrader","generator","scalper","speculator","stockbroker"].forEach((id) => {
     const el = document.getElementById(`buy-${id}`);
