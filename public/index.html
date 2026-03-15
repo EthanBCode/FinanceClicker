@@ -1274,38 +1274,17 @@ function animateTitle(){
   const el = $("title-anim");
   if (!el) return;
 
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%*_-+=:;./";
-  const maxWidth = target.length;
+  el.textContent = "";
   el.style.minHeight = "1.2em";
-
-  const sizingProbe = document.createElement('span');
-  sizingProbe.className = el.className;
-  sizingProbe.textContent = target;
-  sizingProbe.style.position = 'absolute';
-  sizingProbe.style.visibility = 'hidden';
-  sizingProbe.style.pointerEvents = 'none';
-  sizingProbe.style.whiteSpace = 'nowrap';
-  document.body.appendChild(sizingProbe);
-  el.style.width = `${Math.ceil(sizingProbe.getBoundingClientRect().width)}px`;
-  sizingProbe.remove();
 
   let i = 0;
   function tick(){
-    const settled = target.slice(0, i);
-    const remain = target.slice(i);
-    const n = Math.min(8, remain.length);
-    let scr = "";
-    for (let k=0;k<n;k++) scr += chars[(Math.random()*chars.length)|0];
-    const pad = " ".repeat(Math.max(0, maxWidth - (settled.length + scr.length)));
-    el.textContent = settled + scr + pad;
-    if (i < target.length){
-      i += Math.random() < 0.3 ? 0 : 1;
-      setTimeout(tick, 42 + Math.random()*45);
-    }else{
-      el.textContent = target;
-    }
+    i += 1;
+    el.textContent = target.slice(0, i);
+    if (i < target.length) setTimeout(tick, 80);
   }
-  tick();
+
+  setTimeout(tick, 200);
 }
 function startTitleAnimationIfNeeded(){
   if (titleAnimationStarted) return;
