@@ -41,9 +41,8 @@
   <main class="container">
     <section id="logged-out" class="grid landing-grid">
       <div class="landing-hero">
-        <div class="mono muted landing-prompt">welcome@terminal:~$</div>
         <h1 class="big-title terminal-title" id="title-anim"></h1>
-        <p class="landing-copy">login to trade and climb the leaderboard.</p>
+        <p class="landing-copy">login to trade and climb the leaderboard</p>
 
         <div class="landing-actions">
           <button class="btn landing-login-btn tilt-btn" id="login-btn">connect / login</button>
@@ -421,7 +420,7 @@
     </section>
   </main>
 
-  <div class="screen-loader" id="landing-loader" aria-hidden="true">
+  <div class="screen-loader visible" id="landing-loader" aria-hidden="false">
     <div class="loader-desktop" id="landing-loader-desktop"></div>
   </div>
 
@@ -629,12 +628,12 @@ function setLbStatus(ok, msg){
   el.classList.toggle("err", !ok);
   el.textContent = msg;
 }
-function showLoggedIn(){
+function showLoggedIn(showGameplayLoader = true){
   $("logged-out").classList.add("hidden");
   $("logged-in").classList.remove("hidden");
   document.body.classList.remove("landing-active");
   setEnv(true);
-  runGameplayLoader();
+  if (showGameplayLoader) runGameplayLoader();
 }
 function showLoggedOut(){
   $("logged-in").classList.add("hidden");
@@ -906,23 +905,32 @@ function playTradeBeep(){
   }
 }
 
-function showLoader(id){
+function showLoader(id, { instant = false } = {}){
   const el = $(id);
   if (!el) return;
+  if (instant) el.classList.add("no-transition");
   el.classList.add("visible");
+  el.setAttribute("aria-hidden", "false");
+  if (instant) requestAnimationFrame(() => el.classList.remove("no-transition"));
 }
 
 function hideLoader(id){
   const el = $(id);
   if (!el) return;
   el.classList.remove("visible");
+  el.setAttribute("aria-hidden", "true");
 }
 
 const loaderTimers = new Set();
+let loaderHideTimeout = null;
 
 function clearLoaderTimers(){
   loaderTimers.forEach((t) => clearInterval(t));
   loaderTimers.clear();
+  if (loaderHideTimeout){
+    clearTimeout(loaderHideTimeout);
+    loaderHideTimeout = null;
+  }
 }
 
 function windowTemplate(title, subtitle, mode, variant = "hash-only"){
@@ -1204,26 +1212,29 @@ function animateWindow(win, durationMs){
   loaderTimers.add(timer);
 }
 
-function runTerminalLoader(loaderId, desktopId, windowsConfig){
+function runTerminalLoader(loaderId, desktopId, windowsConfig, options = {}){
   const loaderDurationMs = 4000;
   clearLoaderTimers();
+  hideLoader("landing-loader");
+  hideLoader("gameplay-loader");
+
   const windows = buildLoaderWindows(desktopId, windowsConfig);
-  showLoader(loaderId);
+  showLoader(loaderId, options);
   windows.forEach((w) => animateWindow(w, loaderDurationMs));
 
-  setTimeout(() => {
+  loaderHideTimeout = setTimeout(() => {
     hideLoader(loaderId);
     clearLoaderTimers();
   }, loaderDurationMs);
 }
 
-function runLandingLoader(){
+function runLandingLoader(options = {}){
   runTerminalLoader("landing-loader", "landing-loader-desktop", [
     { title: "terminal:// build", subtitle: "npm run build", mode: "rect", commands: ["compile css", "bundle assets", "write output", "cleanup artifacts", "build done"] },
     { title: "installer:// deps", subtitle: "node_modules sync", mode: "hash", commands: ["resolve", "download", "verify", "link", "ready"] },
     { title: "runtime:// boot", subtitle: "start app", mode: "spinner", commands: ["checking runtime", "loading auth", "mounting ui", "loading market feed", "connected"] },
     { title: "assets:// preload", subtitle: "hydrate terminal ui", mode: "rect", commands: ["load fonts", "restore layout", "cache icons", "ready"] },
-  ]);
+  ], options);
 }
 
 function runGameplayLoader(){
@@ -1239,7 +1250,7 @@ function runGameplayLoader(){
 
 // --- Title “decode” animation ---
 function animateTitle(){
-  const target = "THE MARKET NEVER SLEEPS.";
+  const target = "PLAY THE MARKET";
   const el = $("title-anim");
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%*_-+=:;./";
   const maxWidth = target.length;
@@ -1639,7 +1650,7 @@ function startTicker() {
   });
 }
 async function init(){
-  runLandingLoader();
+  runLandingLoader({ instant: true });
   animateTitle();
   startCandles();
   startTicker();
@@ -1678,6 +1689,7 @@ async function init(){
 
   const params = getParams();
   if (params.error){
+    runLandingLoader();
     showLoggedOut();
     $("login-help").classList.add("err");
     $("login-help").textContent = "login:// error: " + (params.error_description || params.error);
@@ -1690,6 +1702,7 @@ async function init(){
       await exchangeCodeForTokens(params.code);
       cleanUrl();
     }catch(e){
+      runLandingLoader();
       showLoggedOut();
       $("login-help").classList.add("err");
       $("login-help").textContent = "login:// failed: " + e.message;
@@ -1699,7 +1712,7 @@ async function init(){
   }
 
   if (storage.idToken || storage.accessToken){
-    showLoggedIn();
+    showLoggedIn(false);
     setStatus(true, "state:// syncing…");
     await refreshState();
     await refreshLeaderboard();
@@ -1711,6 +1724,7 @@ async function init(){
     if (idleTimer) clearInterval(idleTimer);
     idleTimer = setInterval(refreshState, idleTickMs);
   } else {
+    runLandingLoader();
     showLoggedOut();
   }
 }

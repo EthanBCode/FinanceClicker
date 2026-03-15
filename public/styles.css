@@ -21,6 +21,47 @@
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
+
+html,
+body{
+  scrollbar-width: thin;
+  scrollbar-color: rgba(10, 16, 28, 0.58) rgba(8, 12, 22, 0.22);
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar{
+  width: 10px;
+  height: 10px;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track,
+*::-webkit-scrollbar-track{
+  background: rgba(8, 12, 22, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-thumb{
+  background: rgba(10, 16, 28, 0.42);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover,
+*::-webkit-scrollbar-thumb:hover{
+  background: rgba(10, 16, 28, 0.62);
+}
+
+html::-webkit-scrollbar-thumb:active,
+body::-webkit-scrollbar-thumb:active,
+*::-webkit-scrollbar-thumb:active{
+  background: rgba(10, 16, 28, 0.78);
+}
+
 body{
   margin:0;
   font-family: var(--sans);
@@ -232,8 +273,9 @@ canvas#bg{
 }
 
 .upgrades-panel-body::-webkit-scrollbar-thumb{
-  background: rgba(55,242,161,0.25);
+  background: rgba(10, 16, 28, 0.52);
   border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .leaderboard-more-btn{
@@ -644,6 +686,11 @@ tbody tr:hover td{
   opacity: 1;
   pointer-events: all;
 }
+
+.screen-loader.no-transition{
+  transition: none;
+}
+
 
 .loader-desktop{
   position: relative;
