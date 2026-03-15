@@ -29,6 +29,15 @@ body{
   overflow-x:hidden;
 }
 
+body.landing-active::after{
+  content:"";
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.68);
+  pointer-events:none;
+  z-index: 0;
+}
+
 a{ color: var(--accent); text-decoration:none; }
 a:hover{ text-decoration:underline; }
 
@@ -176,6 +185,8 @@ canvas#bg{
   max-width:1120px;
   margin:0 auto;
   padding: 24px 16px 80px;
+  position: relative;
+  z-index: 1;
 }
 
 
@@ -202,6 +213,7 @@ canvas#bg{
   border-width:2px;
   border-color: rgba(55,242,161,0.44);
   box-shadow: 0 16px 34px rgba(0,0,0,.5), 0 0 30px rgba(55,242,161,0.24);
+  transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease, background .15s ease, border-color .15s ease;
 }
 
 .gameplay-trade-btn:hover{
@@ -256,22 +268,16 @@ canvas#bg{
   max-width: 860px;
   margin: 40px auto 0;
   text-align: center;
-  background: rgba(8, 12, 22, 0.64);
-  border: 1px solid rgba(40,255,170,0.18);
-  border-radius: 20px;
-  box-shadow: var(--shadow);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  padding: 34px 24px 24px;
+  padding: 52px 20px 26px;
 }
 .landing-prompt{
   margin-bottom: 10px;
-  font-size: 13px;
+  font-size: 17px;
 }
 .landing-copy{
   margin: 20px auto 0;
   max-width: 30ch;
-  font-size: 32px;
+  font-size: 40px;
   font-weight: 700;
   color: rgba(232,255,245,0.92);
 }
@@ -284,18 +290,28 @@ canvas#bg{
 }
 .landing-login-btn{
   min-width: min(94vw, 520px);
-  min-height: 106px;
-  font-size: 34px;
+  min-height: 120px;
+  font-size: 40px;
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   border-width: 2px;
+  background: rgba(14, 18, 30, 0.62);
+  border-color: rgba(165, 255, 221, 0.42);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 22px 40px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.12);
 }
 .landing-learn-btn{
   min-width: min(78vw, 380px);
-  min-height: 68px;
-  font-size: 20px;
+  min-height: 82px;
+  font-size: 24px;
   text-transform: uppercase;
+  background: rgba(14, 18, 30, 0.62);
+  border-color: rgba(165, 255, 221, 0.35);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 34px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.10);
 }
 
 @media (max-width: 980px){
@@ -341,7 +357,7 @@ canvas#bg{
   letter-spacing: -0.02em;
 }
 @media (max-width:520px){ .big-title{ font-size: 32px; } }
-.landing-hero .big-title{ font-size: clamp(52px, 8vw, 86px); letter-spacing: -0.01em; }
+.landing-hero .big-title{ font-size: clamp(62px, 10vw, 104px); letter-spacing: -0.01em; }
 
 .mono{ font-family: var(--mono); }
 .muted{ color: var(--muted); }
@@ -637,12 +653,12 @@ tbody tr:hover td{
 
 .term-window{
   position: absolute;
-  width: min(46vw, 560px);
-  min-height: 220px;
+  width: min(48vw, 620px);
+  min-height: 290px;
   border: 1px solid rgba(255,255,255,0.42);
-  background: #000;
+  background: #020202;
   color: #fff;
-  box-shadow: 0 22px 42px rgba(0,0,0,0.7);
+  box-shadow: 0 26px 52px rgba(0,0,0,0.76);
 }
 
 .term-titlebar{
@@ -698,6 +714,33 @@ tbody tr:hover td{
   line-height: 1.45;
 }
 
+
+.term-logbox{
+  height: 152px;
+  padding: 2px 0 0;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+
+.term-cursor{
+  animation: termCursorBlink 0.8s steps(1, end) infinite;
+}
+
+@keyframes termCursorBlink{
+  0%, 45% { opacity: 1; }
+  46%, 100% { opacity: 0; }
+}
+
+.term-logline{
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  margin: 0 0 5px;
+  opacity: 0.95;
+}
+
 .term-line{ margin-bottom: 8px; }
 .term-line.muted{ opacity: .76; }
 
@@ -723,6 +766,6 @@ tbody tr:hover td{
 
 @media (max-width: 980px){
   .term-window{
-    width: min(92vw, 560px);
+    width: min(92vw, 620px);
   }
 }
