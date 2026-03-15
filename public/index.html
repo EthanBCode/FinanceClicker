@@ -420,6 +420,12 @@
     </section>
   </main>
 
+  <div class="gameplay-scroll-nav hidden" id="gameplay-scroll-nav" aria-label="Gameplay scroll controls">
+    <button class="scroll-nav-btn" id="scroll-up-btn" type="button" aria-label="Scroll up">▲</button>
+    <div class="scroll-nav-link" aria-hidden="true"></div>
+    <button class="scroll-nav-btn" id="scroll-down-btn" type="button" aria-label="Scroll down">▼</button>
+  </div>
+
   <div class="screen-loader visible" id="landing-loader" aria-hidden="true">
     <div class="loader-desktop" id="landing-loader-desktop"></div>
   </div>
@@ -607,11 +613,50 @@ const getLeaderboard = () => apiFetch(endpoints.leaderboard, { method: "GET" });
 // ===== UI glue =====
 let leaderboardTimer = null;
 let idleTimer = null;
+let landingScrollLimits = { min: 0, max: 0 };
+const LANDING_SCROLL_START_OFFSET = 24;
+const LANDING_SCROLL_EDGE_PADDING = 32;
 let leaderboardItems = [];
 let leaderboardVisibleCount = 10;
 const leaderboardStep = 10;
 let activeTradeAudio = null;
 const leaderboardMax = 50;
+
+function clampLandingScrollPosition(){
+  if (!document.body.classList.contains("landing-active")) return;
+  const y = window.scrollY;
+  const min = landingScrollLimits.min;
+  const max = landingScrollLimits.max;
+  if (y < min) {
+    window.scrollTo({ top: min, left: 0, behavior: "auto" });
+  } else if (y > max) {
+    window.scrollTo({ top: max, left: 0, behavior: "auto" });
+  }
+}
+
+function updateLandingScrollLimits(){
+  const hero = document.querySelector("#logged-out .landing-hero");
+  if (!hero) return;
+
+  const rect = hero.getBoundingClientRect();
+  const pageTop = rect.top + window.scrollY;
+  const pageBottom = rect.bottom + window.scrollY;
+  const documentMax = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+
+  const targetMin = Math.max(0, Math.floor(pageTop - LANDING_SCROLL_EDGE_PADDING));
+  const targetMax = Math.max(targetMin, Math.ceil(pageBottom - window.innerHeight + LANDING_SCROLL_EDGE_PADDING));
+
+  const min = Math.min(targetMin, documentMax);
+  const max = Math.min(Math.max(min, targetMax), documentMax);
+  landingScrollLimits = { min, max };
+}
+
+function placeLandingAtPreferredOffset(){
+  updateLandingScrollLimits();
+  const target = Math.min(landingScrollLimits.max, landingScrollLimits.min + LANDING_SCROLL_START_OFFSET);
+  window.scrollTo({ top: target, left: 0, behavior: "auto" });
+  clampLandingScrollPosition();
+}
 
 function setEnv(connected){
   $("env-text").textContent = connected ? "connected" : "disconnected";
@@ -632,12 +677,15 @@ function showLoggedIn(){
   $("logged-out").classList.add("hidden");
   $("logged-in").classList.remove("hidden");
   document.body.classList.remove("landing-active");
+  $("gameplay-scroll-nav").classList.remove("hidden");
   setEnv(true);
 }
 function showLoggedOut(){
   $("logged-in").classList.add("hidden");
   $("logged-out").classList.remove("hidden");
   document.body.classList.add("landing-active");
+  $("gameplay-scroll-nav").classList.add("hidden");
+  requestAnimationFrame(placeLandingAtPreferredOffset);
   setEnv(false);
   leaderboardVisibleCount = 10;
   leaderboardItems = [];
@@ -1704,6 +1752,24 @@ async function init(){
   $("short-sell-btn").addEventListener("click", () => doTrade("short", "sell"));
 
   $("learn-btn").addEventListener("click", () => { window.location.href = "./how-it-works.html"; });
+
+  $("scroll-up-btn").addEventListener("click", () => {
+    window.scrollBy({ top: -Math.round(window.innerHeight * 0.8), left: 0, behavior: "smooth" });
+  });
+  $("scroll-down-btn").addEventListener("click", () => {
+    window.scrollBy({ top: Math.round(window.innerHeight * 0.8), left: 0, behavior: "smooth" });
+  });
+
+  window.addEventListener("resize", () => {
+    if (!document.body.classList.contains("landing-active")) return;
+    updateLandingScrollLimits();
+    clampLandingScrollPosition();
+  });
+
+  window.addEventListener("scroll", () => {
+    if (!document.body.classList.contains("landing-active")) return;
+    clampLandingScrollPosition();
+  }, { passive: true });
 
   const params = getParams();
   if (params.error){
