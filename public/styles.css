@@ -23,46 +23,19 @@
 html,body{ height:100%; }
 
 html{
-  scrollbar-width: thin;
-  scrollbar-color: rgba(18, 28, 46, 0.68) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 html::-webkit-scrollbar,
-body::-webkit-scrollbar,
-*::-webkit-scrollbar{
-  width: 10px;
-  height: 10px;
-}
-
-html::-webkit-scrollbar-track,
-body::-webkit-scrollbar-track,
-*::-webkit-scrollbar-track{
-  background: transparent;
-}
-
-html::-webkit-scrollbar-thumb,
-body::-webkit-scrollbar-thumb,
-*::-webkit-scrollbar-thumb{
-  background: rgba(18, 28, 46, 0.68);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-html::-webkit-scrollbar-thumb:hover,
-body::-webkit-scrollbar-thumb:hover,
-*::-webkit-scrollbar-thumb:hover{
-  background: rgba(11, 18, 31, 0.86);
-}
-
-html::-webkit-scrollbar-thumb:active,
-body::-webkit-scrollbar-thumb:active,
-*::-webkit-scrollbar-thumb:active{
-  background: rgba(6, 10, 18, 0.95);
+body::-webkit-scrollbar{
+  display: none;
 }
 
 body{
   margin:0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   font-family: var(--sans);
   color:var(--text);
   background: linear-gradient(180deg, var(--bg0), var(--bg1)); /* simpler */
@@ -276,30 +249,32 @@ canvas#bg{
   overflow-y: auto;
   padding-right: 10px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(18, 28, 46, 0.72) transparent;
+  scrollbar-color: rgba(190, 230, 255, 0.45) rgba(255,255,255,0.05);
 }
 
 .upgrades-panel-body::-webkit-scrollbar{
-  width: 10px;
+  width: 9px;
 }
 
 .upgrades-panel-body::-webkit-scrollbar-track{
-  background: transparent;
+  background: rgba(255,255,255,0.04);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+  backdrop-filter: blur(6px);
 }
 
 .upgrades-panel-body::-webkit-scrollbar-thumb{
-  background: rgba(18, 28, 46, 0.72);
+  background: linear-gradient(180deg, rgba(214, 244, 255, 0.5), rgba(150, 210, 255, 0.28));
   border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+  border: 1px solid rgba(255,255,255,0.24);
 }
 
-.upgrades-panel-body::-webkit-scrollbar-thumb:hover{
-  background: rgba(11, 18, 31, 0.9);
+.upgrades-panel-body:hover::-webkit-scrollbar-thumb{
+  background: linear-gradient(180deg, rgba(234, 250, 255, 0.72), rgba(169, 221, 255, 0.4));
 }
 
 .upgrades-panel-body::-webkit-scrollbar-thumb:active{
-  background: rgba(6, 10, 18, 0.96);
+  background: linear-gradient(180deg, rgba(245, 253, 255, 0.86), rgba(197, 235, 255, 0.52));
 }
 
 .leaderboard-more-btn{
@@ -424,6 +399,10 @@ canvas#bg{
 }
 @media (max-width:520px){ .big-title{ font-size: 32px; } }
 .landing-hero .big-title{ font-size: clamp(62px, 10vw, 104px); letter-spacing: -0.01em; }
+.terminal-title{
+  display:inline-block;
+  white-space: nowrap;
+}
 
 .mono{ font-family: var(--mono); }
 .muted{ color: var(--muted); }

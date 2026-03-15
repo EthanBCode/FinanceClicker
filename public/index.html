@@ -989,6 +989,22 @@ function buildLoaderWindows(desktopId, config){
   const winW = Math.min(desktopRect.width * (isNarrow ? 0.92 : 0.48), 620);
   const winH = 290;
   const placedRects = [];
+  let nextZIndex = 10;
+
+  function bringToFront(win){
+    nextZIndex += 1;
+    win.style.zIndex = String(nextZIndex);
+  }
+
+  function sendToBack(win){
+    const allWindows = Array.from(desktop.querySelectorAll('.term-window'));
+    const minZ = allWindows.reduce((min, w) => {
+      const z = Number(w.style.zIndex || 0);
+      return Math.min(min, z);
+    }, Number.POSITIVE_INFINITY);
+    const targetZ = Number.isFinite(minZ) ? minZ - 1 : 1;
+    win.style.zIndex = String(targetZ);
+  }
 
   function overlapArea(a, b){
     const x = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
@@ -1036,7 +1052,8 @@ function buildLoaderWindows(desktopId, config){
     placedRects.push(pos);
     win.style.left = `${((pos.x / desktopRect.width) * 100).toFixed(2)}%`;
     win.style.top = `${((pos.y / desktopRect.height) * 100).toFixed(2)}%`;
-    win.style.zIndex = String(10 + idx);
+    nextZIndex += 1;
+    win.style.zIndex = String(nextZIndex);
     const variant = shuffledVariants[idx % shuffledVariants.length];
     win.innerHTML = `
       <div class="term-titlebar" data-drag-handle>
@@ -1049,18 +1066,22 @@ function buildLoaderWindows(desktopId, config){
       <div class="term-body">${windowTemplate(item.title, item.subtitle, item.mode, variant)}</div>
     `;
 
+    const minimizeBtn = win.querySelector('.term-control-btn[aria-label="minimize"]');
     const closeBtn = win.querySelector('.term-control-btn[aria-label="close"]');
+    minimizeBtn.addEventListener('click', () => { sendToBack(win); });
     closeBtn.addEventListener('click', () => { win.style.display = 'none'; });
 
+    win.addEventListener('mousedown', () => bringToFront(win));
+
     desktop.appendChild(win);
-    attachDrag(win, desktop);
+    attachDrag(win, desktop, bringToFront);
     return { el: win, mode: item.mode, commands: item.commands || [], variant };
   });
 
   return windows;
 }
 
-function attachDrag(win, desktop){
+function attachDrag(win, desktop, bringToFront){
   const handle = win.querySelector('[data-drag-handle]');
   if (!handle) return;
 
@@ -1073,7 +1094,7 @@ function attachDrag(win, desktop){
     const rect = win.getBoundingClientRect();
     offsetX = e.clientX - rect.left;
     offsetY = e.clientY - rect.top;
-    win.style.zIndex = String(Number(win.style.zIndex || 1) + 20);
+    bringToFront(win);
     handle.style.cursor = 'grabbing';
   });
 
@@ -1251,9 +1272,23 @@ function runGameplayLoader(){
 function animateTitle(){
   const target = "PLAY THE MARKET";
   const el = $("title-anim");
+  if (!el) return;
+
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%*_-+=:;./";
   const maxWidth = target.length;
   el.style.minHeight = "1.2em";
+
+  const sizingProbe = document.createElement('span');
+  sizingProbe.className = el.className;
+  sizingProbe.textContent = target;
+  sizingProbe.style.position = 'absolute';
+  sizingProbe.style.visibility = 'hidden';
+  sizingProbe.style.pointerEvents = 'none';
+  sizingProbe.style.whiteSpace = 'nowrap';
+  document.body.appendChild(sizingProbe);
+  el.style.width = `${Math.ceil(sizingProbe.getBoundingClientRect().width)}px`;
+  sizingProbe.remove();
+
   let i = 0;
   function tick(){
     const settled = target.slice(0, i);
