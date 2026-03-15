@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="./styles.css" />
   <link rel="icon" href="data:," />
 </head>
-<body class="landing-active">
+<body class="landing-active booting">
   <canvas id="bg"></canvas>
   <div class="scanlines"></div>
   <div class="vignette"></div>
@@ -420,7 +420,7 @@
     </section>
   </main>
 
-  <div class="screen-loader" id="landing-loader" aria-hidden="true">
+  <div class="screen-loader visible" id="landing-loader" aria-hidden="true">
     <div class="loader-desktop" id="landing-loader-desktop"></div>
   </div>
 
@@ -633,7 +633,6 @@ function showLoggedIn(){
   $("logged-in").classList.remove("hidden");
   document.body.classList.remove("landing-active");
   setEnv(true);
-  runGameplayLoader();
 }
 function showLoggedOut(){
   $("logged-in").classList.add("hidden");
@@ -919,6 +918,7 @@ function hideLoader(id){
 
 const loaderTimers = new Set();
 let loaderHideTimeout = null;
+let titleAnimationStarted = false;
 
 function clearLoaderTimers(){
   loaderTimers.forEach((t) => clearInterval(t));
@@ -1218,14 +1218,17 @@ function runTerminalLoader(loaderId, desktopId, windowsConfig){
   showLoader(loaderId);
   windows.forEach((w) => animateWindow(w, loaderDurationMs));
 
-  loaderHideTimeout = setTimeout(() => {
-    hideLoader(loaderId);
-    clearLoaderTimers();
-  }, loaderDurationMs);
+  return new Promise((resolve) => {
+    loaderHideTimeout = setTimeout(() => {
+      hideLoader(loaderId);
+      clearLoaderTimers();
+      resolve();
+    }, loaderDurationMs);
+  });
 }
 
 function runLandingLoader(){
-  runTerminalLoader("landing-loader", "landing-loader-desktop", [
+  return runTerminalLoader("landing-loader", "landing-loader-desktop", [
     { title: "terminal:// build", subtitle: "npm run build", mode: "rect", commands: ["compile css", "bundle assets", "write output", "cleanup artifacts", "build done"] },
     { title: "installer:// deps", subtitle: "node_modules sync", mode: "hash", commands: ["resolve", "download", "verify", "link", "ready"] },
     { title: "runtime:// boot", subtitle: "start app", mode: "spinner", commands: ["checking runtime", "loading auth", "mounting ui", "loading market feed", "connected"] },
@@ -1234,7 +1237,7 @@ function runLandingLoader(){
 }
 
 function runGameplayLoader(){
-  runTerminalLoader("gameplay-loader", "gameplay-loader-desktop", [
+  return runTerminalLoader("gameplay-loader", "gameplay-loader-desktop", [
     { title: "state:// sync", subtitle: "fetch /state", mode: "rect", commands: ["request", "apply diff", "complete"] },
     { title: "leaderboard:// hydrate", subtitle: "fetch /leaderboard", mode: "hash", commands: ["pull ranks", "normalize", "render"] },
     { title: "trade-engine:// prime", subtitle: "warm handlers", mode: "spinner", commands: ["binding inputs", "warming cache", "ready to trade"] },
@@ -1269,6 +1272,13 @@ function animateTitle(){
   }
   tick();
 }
+function startTitleAnimationIfNeeded(){
+  if (titleAnimationStarted) return;
+  titleAnimationStarted = true;
+  animateTitle();
+}
+
+
 function startCandles() {
   const canvas = $("bg");
   const ctx = canvas.getContext("2d");
@@ -1646,7 +1656,6 @@ function startTicker() {
   });
 }
 async function init(){
-  animateTitle();
   startCandles();
   startTicker();
 
@@ -1684,11 +1693,13 @@ async function init(){
 
   const params = getParams();
   if (params.error){
-    runLandingLoader();
     showLoggedOut();
+    await runLandingLoader();
+    startTitleAnimationIfNeeded();
     $("login-help").classList.add("err");
     $("login-help").textContent = "login:// error: " + (params.error_description || params.error);
     cleanUrl();
+    document.body.classList.remove("booting");
     return;
   }
 
@@ -1697,17 +1708,20 @@ async function init(){
       await exchangeCodeForTokens(params.code);
       cleanUrl();
     }catch(e){
-      runLandingLoader();
       showLoggedOut();
+      await runLandingLoader();
+      startTitleAnimationIfNeeded();
       $("login-help").classList.add("err");
       $("login-help").textContent = "login:// failed: " + e.message;
       cleanUrl();
+      document.body.classList.remove("booting");
       return;
     }
   }
 
   if (storage.idToken || storage.accessToken){
     showLoggedIn();
+    await runGameplayLoader();
     setStatus(true, "state:// syncing…");
     await refreshState();
     await refreshLeaderboard();
@@ -1719,9 +1733,12 @@ async function init(){
     if (idleTimer) clearInterval(idleTimer);
     idleTimer = setInterval(refreshState, idleTickMs);
   } else {
-    runLandingLoader();
     showLoggedOut();
+    await runLandingLoader();
+    startTitleAnimationIfNeeded();
   }
+
+  document.body.classList.remove("booting");
 }
 
 init();

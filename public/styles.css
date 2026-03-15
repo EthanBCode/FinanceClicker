@@ -24,7 +24,7 @@ html,body{ height:100%; }
 
 html{
   scrollbar-width: thin;
-  scrollbar-color: rgba(10, 16, 28, 0.55) rgba(8, 12, 22, 0.18);
+  scrollbar-color: rgba(18, 28, 46, 0.68) transparent;
 }
 
 html::-webkit-scrollbar,
@@ -37,28 +37,28 @@ body::-webkit-scrollbar,
 html::-webkit-scrollbar-track,
 body::-webkit-scrollbar-track,
 *::-webkit-scrollbar-track{
-  background: rgba(8, 12, 22, 0.18);
-  backdrop-filter: blur(8px);
+  background: transparent;
 }
 
 html::-webkit-scrollbar-thumb,
 body::-webkit-scrollbar-thumb,
 *::-webkit-scrollbar-thumb{
-  background: rgba(10, 16, 28, 0.42);
+  background: rgba(18, 28, 46, 0.68);
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 html::-webkit-scrollbar-thumb:hover,
 body::-webkit-scrollbar-thumb:hover,
 *::-webkit-scrollbar-thumb:hover{
-  background: rgba(10, 16, 28, 0.62);
+  background: rgba(11, 18, 31, 0.86);
 }
 
 html::-webkit-scrollbar-thumb:active,
 body::-webkit-scrollbar-thumb:active,
 *::-webkit-scrollbar-thumb:active{
-  background: rgba(10, 16, 28, 0.78);
+  background: rgba(6, 10, 18, 0.95);
 }
 
 body{
@@ -67,6 +67,16 @@ body{
   color:var(--text);
   background: linear-gradient(180deg, var(--bg0), var(--bg1)); /* simpler */
   overflow-x:hidden;
+}
+
+
+body.booting > *:not(.screen-loader){
+  visibility: hidden;
+}
+
+body.booting .screen-loader.visible{
+  opacity: 1;
+  pointer-events: all;
 }
 
 body.landing-active::after{
@@ -266,7 +276,7 @@ canvas#bg{
   overflow-y: auto;
   padding-right: 10px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(10, 16, 28, 0.62) rgba(8, 12, 22, 0.24);
+  scrollbar-color: rgba(18, 28, 46, 0.72) transparent;
 }
 
 .upgrades-panel-body::-webkit-scrollbar{
@@ -274,25 +284,22 @@ canvas#bg{
 }
 
 .upgrades-panel-body::-webkit-scrollbar-track{
-  background: rgba(8, 12, 22, 0.24);
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  background: transparent;
 }
 
 .upgrades-panel-body::-webkit-scrollbar-thumb{
-  background: linear-gradient(180deg, rgba(14, 22, 38, 0.86), rgba(8, 12, 22, 0.92));
+  background: rgba(18, 28, 46, 0.72);
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 .upgrades-panel-body::-webkit-scrollbar-thumb:hover{
-  background: linear-gradient(180deg, rgba(9, 15, 28, 0.94), rgba(6, 10, 20, 0.97));
+  background: rgba(11, 18, 31, 0.9);
 }
 
 .upgrades-panel-body::-webkit-scrollbar-thumb:active{
-  background: linear-gradient(180deg, rgba(5, 8, 16, 0.98), rgba(3, 6, 12, 1));
+  background: rgba(6, 10, 18, 0.96);
 }
 
 .leaderboard-more-btn{
