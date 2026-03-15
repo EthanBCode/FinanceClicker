@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="./styles.css" />
   <link rel="icon" href="data:," />
 </head>
-<body>
+<body class="landing-active">
   <canvas id="bg"></canvas>
   <div class="scanlines"></div>
   <div class="vignette"></div>
@@ -632,12 +632,14 @@ function setLbStatus(ok, msg){
 function showLoggedIn(){
   $("logged-out").classList.add("hidden");
   $("logged-in").classList.remove("hidden");
+  document.body.classList.remove("landing-active");
   setEnv(true);
   runGameplayLoader();
 }
 function showLoggedOut(){
   $("logged-in").classList.add("hidden");
   $("logged-out").classList.remove("hidden");
+  document.body.classList.add("landing-active");
   setEnv(false);
   leaderboardVisibleCount = 10;
   leaderboardItems = [];
@@ -793,23 +795,23 @@ async function refreshState(){
 
 async function doClick(){
   const tradeBtn = $("click-btn");
+  const keyboardTriggered = !tradeBtn.matches(":active");
   try{
     tradeBtn.disabled = true;
-    tradeBtn.classList.add("btn-pressed");
+    if (keyboardTriggered) tradeBtn.classList.add("btn-pressed");
     playTradeBeep();
     setStatus(true, "trade:// executing…");
     const state = await clickOnce();
     renderState(state);
-    tradeBtn.classList.remove("btn-bounce");
-    void tradeBtn.offsetWidth;
-    tradeBtn.classList.add("btn-bounce");
     setStatus(true, `trade:// ok (idle +${state?.gained?.idle ?? 0}, click +${state?.gained?.click ?? 1})`);
     await refreshLeaderboard();
   }catch(e){
     setStatus(false, "trade:// failed: " + e.message);
   }finally{
-    setTimeout(() => tradeBtn.classList.remove("btn-pressed"), 50);
-    tradeBtn.disabled = false;
+    setTimeout(() => {
+      tradeBtn.classList.remove("btn-pressed");
+      tradeBtn.disabled = false;
+    }, keyboardTriggered ? 120 : 0);
   }
 }
 
@@ -923,28 +925,53 @@ function clearLoaderTimers(){
   loaderTimers.clear();
 }
 
-function windowTemplate(title, subtitle, mode){
-  if (mode === "rect") {
-    return `
-      <div class="term-line">$ ${subtitle}</div>
-      <div class="term-line muted">initializing modules...</div>
-      <div class="term-progress-rect"><div class="term-progress-rect-fill"></div></div>
-      <div class="term-line" data-progress-text>0%</div>
-    `;
-  }
+function windowTemplate(title, subtitle, mode, variant = "hash-only"){
+  const showWhiteBar = variant === "white+hash" || variant === "white-only";
+  const showHash = variant !== "white-only";
+  const showSecondaryHash = variant === "dual-hash";
+
+  const progressBar = showWhiteBar
+    ? `<div class="term-progress-rect"><div class="term-progress-rect-fill" data-progress-fill></div></div>`
+    : "";
+
+  const hashPrimary = showHash
+    ? `<div class="term-line term-hash" data-hash>[----------------------------]</div>`
+    : "";
+
+  const hashSecondary = showSecondaryHash
+    ? `<div class="term-line term-hash" data-hash-secondary>[----------------------------]</div>`
+    : "";
+
   if (mode === "hash") {
     return `
-      <div class="term-line">> ${subtitle}</div>
-      <div class="term-line muted">installing packages</div>
-      <div class="term-line term-hash" data-hash>[--------------------]</div>
-      <div class="term-line" data-progress-text>0/20 blocks</div>
+      <div class="term-line">$ <span data-typed-command></span><span class="term-cursor">▋</span></div>
+      <div class="term-line"><span data-spinner>|</span> installing packages</div>
+      ${progressBar}
+      ${hashPrimary}
+      ${hashSecondary}
+      <div class="term-line" data-progress-text>0/28 blocks</div>
+      <div class="term-logbox" data-log-box></div>
+    `;
+  }
+  if (mode === "spinner") {
+    return `
+      <div class="term-line">$ <span data-typed-command></span><span class="term-cursor">▋</span></div>
+      <div class="term-line"><span data-spinner>|</span> running startup commands</div>
+      ${progressBar}
+      ${hashPrimary}
+      ${hashSecondary}
+      <div class="term-line" data-progress-text>0%</div>
+      <div class="term-logbox" data-log-box></div>
     `;
   }
   return `
-    <div class="term-line"># ${subtitle}</div>
-    <div class="term-line muted">running startup commands</div>
-    <div class="term-line"><span data-spinner>|</span> <span data-command>checking runtime</span></div>
+    <div class="term-line">$ <span data-typed-command></span><span class="term-cursor">▋</span></div>
+    <div class="term-line"><span data-spinner>|</span> executing build steps</div>
+    ${progressBar}
+    ${hashPrimary}
+    ${hashSecondary}
     <div class="term-line" data-progress-text>0%</div>
+    <div class="term-logbox" data-log-box></div>
   `;
 }
 
@@ -953,12 +980,60 @@ function buildLoaderWindows(desktopId, config){
   if (!desktop) return [];
 
   desktop.innerHTML = "";
+  const desktopRect = desktop.getBoundingClientRect();
+  const isNarrow = window.innerWidth <= 980;
+  const winW = Math.min(desktopRect.width * (isNarrow ? 0.92 : 0.48), 620);
+  const winH = 290;
+  const placedRects = [];
+
+  function overlapArea(a, b){
+    const x = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+    const y = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+    return x * y;
+  }
+
+  function overlapOk(candidate){
+    return placedRects.every((r) => {
+      const o = overlapArea(candidate, r);
+      if (o <= 0) return true;
+      return o <= 0.6 * candidate.w * candidate.h && o <= 0.6 * r.w * r.h;
+    });
+  }
+
+  function pickPosition(){
+    const maxX = Math.max(0, desktopRect.width - winW);
+    const maxY = Math.max(0, desktopRect.height - winH);
+    let best = { x: 0, y: 0, score: Infinity };
+
+    for (let i = 0; i < 100; i += 1){
+      const x = Math.random() * maxX;
+      const y = Math.random() * maxY;
+      const candidate = { x, y, w: winW, h: winH };
+      if (overlapOk(candidate)) return candidate;
+
+      const score = placedRects.reduce((m, r) => Math.max(m, overlapArea(candidate, r) / (candidate.w * candidate.h)), 0);
+      if (score < best.score) best = { x, y, score };
+    }
+
+    return { x: best.x, y: best.y, w: winW, h: winH };
+  }
+
+  const variants = ["white+hash", "hash-only", "white-only", "dual-hash"];
+  const shuffledVariants = variants
+    .map((v) => ({ v, r: Math.random() }))
+    .sort((a, b) => a.r - b.r)
+    .map((x) => x.v);
+
   const windows = config.map((item, idx) => {
     const win = document.createElement("div");
     win.className = "term-window";
-    win.style.left = `${8 + idx * 26}%`;
-    win.style.top = `${8 + (idx % 2) * 14}%`;
+
+    const pos = pickPosition();
+    placedRects.push(pos);
+    win.style.left = `${((pos.x / desktopRect.width) * 100).toFixed(2)}%`;
+    win.style.top = `${((pos.y / desktopRect.height) * 100).toFixed(2)}%`;
     win.style.zIndex = String(10 + idx);
+    const variant = shuffledVariants[idx % shuffledVariants.length];
     win.innerHTML = `
       <div class="term-titlebar" data-drag-handle>
         <div class="term-title">${item.title}</div>
@@ -967,7 +1042,7 @@ function buildLoaderWindows(desktopId, config){
           <button type="button" class="term-control-btn" aria-label="close">✕</button>
         </div>
       </div>
-      <div class="term-body">${windowTemplate(item.title, item.subtitle, item.mode)}</div>
+      <div class="term-body">${windowTemplate(item.title, item.subtitle, item.mode, variant)}</div>
     `;
 
     const closeBtn = win.querySelector('.term-control-btn[aria-label="close"]');
@@ -975,7 +1050,7 @@ function buildLoaderWindows(desktopId, config){
 
     desktop.appendChild(win);
     attachDrag(win, desktop);
-    return { el: win, mode: item.mode, commands: item.commands || [] };
+    return { el: win, mode: item.mode, commands: item.commands || [], variant };
   });
 
   return windows;
@@ -1015,65 +1090,139 @@ function attachDrag(win, desktop){
 
 function animateWindow(win, durationMs){
   const start = performance.now();
-  const fill = win.el.querySelector('.term-progress-rect-fill');
   const hashEl = win.el.querySelector('[data-hash]');
+  const hashSecondary = win.el.querySelector('[data-hash-secondary]');
+  const progressFill = win.el.querySelector('[data-progress-fill]');
   const spinner = win.el.querySelector('[data-spinner]');
-  const command = win.el.querySelector('[data-command]');
   const progressText = win.el.querySelector('[data-progress-text]');
-  const commands = win.commands.length ? win.commands : ["loading", "starting", "finishing"];
+  const logBox = win.el.querySelector('[data-log-box]');
+  const typedCommandEl = win.el.querySelector('[data-typed-command]');
+  const titleEl = win.el.querySelector('.term-title');
+  const stableTitle = titleEl ? titleEl.textContent : '';
+
+  const scriptsByMode = {
+    rect: [
+      { cmd: 'npm run build -- --minify', out: ['[ok] bundling assets', '[ok] compiling styles', '[ok] writing dist bundle'] },
+      { cmd: 'npm cache verify', out: ['Cache verified and compressed', 'Content verified: 1442 entries'] },
+      { cmd: 'node scripts/postbuild.js', out: ['copying static files...', 'build fingerprint: fcx-2026.03'] },
+    ],
+    hash: [
+      { cmd: 'npm install --prefer-offline', out: ['added 214 packages', 'audited 214 packages in 1s', 'found 0 vulnerabilities'] },
+      { cmd: 'npm dedupe', out: ['deduped dependency tree', 'removed 17 duplicate references'] },
+      { cmd: 'npm ls --depth=0', out: ['finance-clicker@1.0.0', '@tailwindcss/cli@4.2.1', 'tailwindcss@4.2.1'] },
+    ],
+    spinner: [
+      { cmd: 'curl -s /api/state', out: ['HTTP 200 /state', 'hydrating player snapshot... done'] },
+      { cmd: 'curl -s /api/leaderboard', out: ['HTTP 200 /leaderboard', 'rendering top traders... done'] },
+      { cmd: 'node warmup/trade-engine.js', out: ['loading handlers...', 'warming cache...', 'trade-engine ready'] },
+    ],
+  };
+
+  const scripts = scriptsByMode[win.mode] || scriptsByMode.spinner;
   const spinnerChars = ['|','/','-','\\'];
+
+  let scriptIndex = 0;
+  let typedChars = 0;
+  let outputIndex = 0;
+  let nextOutputAt = 0;
+  let inOutputPhase = false;
+
+  function ensureLine(text){
+    if (!logBox) return;
+    const line = document.createElement('div');
+    line.className = 'term-logline';
+    line.textContent = text;
+    logBox.appendChild(line);
+    while (logBox.children.length > 18) logBox.removeChild(logBox.firstChild);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
 
   const timer = setInterval(() => {
     const elapsed = performance.now() - start;
     const t = Math.min(1, elapsed / durationMs);
     const pct = Math.floor(t * 100);
 
-    if (fill) fill.style.width = `${pct}%`;
+    if (progressFill) progressFill.style.width = `${pct}%`;
+
     if (hashEl) {
-      const total = 20;
+      const total = 28;
       const done = Math.round(t * total);
       hashEl.textContent = `[${'#'.repeat(done)}${'-'.repeat(total-done)}]`;
     }
+    if (hashSecondary) {
+      const total = 28;
+      const done = Math.round(Math.min(1, t * 1.12) * total);
+      hashSecondary.textContent = `[${'#'.repeat(done)}${'-'.repeat(total-done)}]`;
+    }
 
-    if (spinner && command) {
-      const index = Math.floor(elapsed / 120) % spinnerChars.length;
+    if (spinner) {
+      const index = Math.floor(elapsed / 90) % spinnerChars.length;
       spinner.textContent = spinnerChars[index];
-      const cmdIndex = Math.min(commands.length - 1, Math.floor(t * commands.length));
-      command.textContent = commands[cmdIndex];
     }
 
     if (progressText) {
-      progressText.textContent = hashEl
-        ? `${Math.round((pct/100)*20)}/20 blocks`
+      progressText.textContent = win.mode === 'hash' || hashEl || hashSecondary
+        ? `${Math.round((pct/100)*28)}/28 blocks`
         : `${pct}%`;
     }
 
+    const active = scripts[scriptIndex % scripts.length];
+
+    if (!inOutputPhase) {
+      typedChars = Math.min(active.cmd.length, typedChars + Math.max(1, Math.round(1 + Math.random() * 2)));
+      if (typedCommandEl) typedCommandEl.textContent = active.cmd.slice(0, typedChars);
+
+      if (typedChars >= active.cmd.length) {
+        ensureLine(`$ ${active.cmd}`);
+        inOutputPhase = true;
+        outputIndex = 0;
+        nextOutputAt = elapsed + 90;
+      }
+    } else if (elapsed >= nextOutputAt) {
+      if (outputIndex < active.out.length) {
+        ensureLine(active.out[outputIndex]);
+        outputIndex += 1;
+        nextOutputAt = elapsed + 95 + Math.random() * 110;
+      } else {
+        scriptIndex += 1;
+        typedChars = 0;
+        inOutputPhase = false;
+        if (typedCommandEl) typedCommandEl.textContent = '';
+      }
+    }
+
+    if (titleEl) titleEl.textContent = stableTitle;
+
     if (t >= 1) {
+      if (typedCommandEl && typedCommandEl.textContent === '') typedCommandEl.textContent = 'done';
+      ensureLine('[ok] completed');
       clearInterval(timer);
       loaderTimers.delete(timer);
     }
-  }, 80);
+  }, 70);
 
   loaderTimers.add(timer);
 }
 
 function runTerminalLoader(loaderId, desktopId, windowsConfig){
+  const loaderDurationMs = 4000;
   clearLoaderTimers();
   const windows = buildLoaderWindows(desktopId, windowsConfig);
   showLoader(loaderId);
-  windows.forEach((w) => animateWindow(w, 4000));
+  windows.forEach((w) => animateWindow(w, loaderDurationMs));
 
   setTimeout(() => {
     hideLoader(loaderId);
     clearLoaderTimers();
-  }, 4000);
+  }, loaderDurationMs);
 }
 
 function runLandingLoader(){
   runTerminalLoader("landing-loader", "landing-loader-desktop", [
-    { title: "terminal:// build", subtitle: "npm run build", mode: "rect", commands: ["compile css", "bundle assets", "write output"] },
-    { title: "installer:// deps", subtitle: "node_modules sync", mode: "hash", commands: ["resolve", "download", "verify", "ready"] },
-    { title: "runtime:// boot", subtitle: "start app", mode: "spinner", commands: ["checking runtime", "loading auth", "mounting ui", "connected"] },
+    { title: "terminal:// build", subtitle: "npm run build", mode: "rect", commands: ["compile css", "bundle assets", "write output", "cleanup artifacts", "build done"] },
+    { title: "installer:// deps", subtitle: "node_modules sync", mode: "hash", commands: ["resolve", "download", "verify", "link", "ready"] },
+    { title: "runtime:// boot", subtitle: "start app", mode: "spinner", commands: ["checking runtime", "loading auth", "mounting ui", "loading market feed", "connected"] },
+    { title: "assets:// preload", subtitle: "hydrate terminal ui", mode: "rect", commands: ["load fonts", "restore layout", "cache icons", "ready"] },
   ]);
 }
 
