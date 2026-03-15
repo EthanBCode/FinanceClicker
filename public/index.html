@@ -41,9 +41,8 @@
   <main class="container">
     <section id="logged-out" class="grid landing-grid">
       <div class="landing-hero">
-        <div class="mono muted landing-prompt">welcome@terminal:~$</div>
         <h1 class="big-title terminal-title" id="title-anim"></h1>
-        <p class="landing-copy">login to trade and climb the leaderboard.</p>
+        <p class="landing-copy">login to trade and climb the leaderboard</p>
 
         <div class="landing-actions">
           <button class="btn landing-login-btn tilt-btn" id="login-btn">connect / login</button>
@@ -919,10 +918,15 @@ function hideLoader(id){
 }
 
 const loaderTimers = new Set();
+let loaderHideTimeout = null;
 
 function clearLoaderTimers(){
   loaderTimers.forEach((t) => clearInterval(t));
   loaderTimers.clear();
+  if (loaderHideTimeout){
+    clearTimeout(loaderHideTimeout);
+    loaderHideTimeout = null;
+  }
 }
 
 function windowTemplate(title, subtitle, mode, variant = "hash-only"){
@@ -1207,11 +1211,14 @@ function animateWindow(win, durationMs){
 function runTerminalLoader(loaderId, desktopId, windowsConfig){
   const loaderDurationMs = 4000;
   clearLoaderTimers();
+  hideLoader("landing-loader");
+  hideLoader("gameplay-loader");
+
   const windows = buildLoaderWindows(desktopId, windowsConfig);
   showLoader(loaderId);
   windows.forEach((w) => animateWindow(w, loaderDurationMs));
 
-  setTimeout(() => {
+  loaderHideTimeout = setTimeout(() => {
     hideLoader(loaderId);
     clearLoaderTimers();
   }, loaderDurationMs);
@@ -1239,7 +1246,7 @@ function runGameplayLoader(){
 
 // --- Title “decode” animation ---
 function animateTitle(){
-  const target = "THE MARKET NEVER SLEEPS.";
+  const target = "PLAY THE MARKET";
   const el = $("title-anim");
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%*_-+=:;./";
   const maxWidth = target.length;
@@ -1639,7 +1646,6 @@ function startTicker() {
   });
 }
 async function init(){
-  runLandingLoader();
   animateTitle();
   startCandles();
   startTicker();
@@ -1678,6 +1684,7 @@ async function init(){
 
   const params = getParams();
   if (params.error){
+    runLandingLoader();
     showLoggedOut();
     $("login-help").classList.add("err");
     $("login-help").textContent = "login:// error: " + (params.error_description || params.error);
@@ -1690,6 +1697,7 @@ async function init(){
       await exchangeCodeForTokens(params.code);
       cleanUrl();
     }catch(e){
+      runLandingLoader();
       showLoggedOut();
       $("login-help").classList.add("err");
       $("login-help").textContent = "login:// failed: " + e.message;
@@ -1711,6 +1719,7 @@ async function init(){
     if (idleTimer) clearInterval(idleTimer);
     idleTimer = setInterval(refreshState, idleTickMs);
   } else {
+    runLandingLoader();
     showLoggedOut();
   }
 }
