@@ -422,7 +422,6 @@
 
   <div class="gameplay-scroll-nav hidden" id="gameplay-scroll-nav" aria-label="Gameplay scroll controls">
     <button class="scroll-nav-btn" id="scroll-up-btn" type="button" aria-label="Scroll up">▲</button>
-    <div class="scroll-nav-link" aria-hidden="true"></div>
     <button class="scroll-nav-btn" id="scroll-down-btn" type="button" aria-label="Scroll down">▼</button>
   </div>
 
@@ -1753,12 +1752,71 @@ async function init(){
 
   $("learn-btn").addEventListener("click", () => { window.location.href = "./how-it-works.html"; });
 
-  $("scroll-up-btn").addEventListener("click", () => {
-    window.scrollBy({ top: -Math.round(window.innerHeight * 0.8), left: 0, behavior: "smooth" });
-  });
-  $("scroll-down-btn").addEventListener("click", () => {
-    window.scrollBy({ top: Math.round(window.innerHeight * 0.8), left: 0, behavior: "smooth" });
-  });
+  const scrollControlState = {
+    direction: 0,
+    currentVelocity: 0,
+    targetVelocity: 0,
+    lastFrameAt: 0,
+    rafId: null,
+  };
+  const gameplayScrollSpeedPxPerSec = 900;
+  const gameplayScrollLerpRate = 0.14;
+
+  const stepGameplayScroll = (now) => {
+    if (!scrollControlState.lastFrameAt) scrollControlState.lastFrameAt = now;
+    const dt = Math.min((now - scrollControlState.lastFrameAt) / 1000, 0.05);
+    scrollControlState.lastFrameAt = now;
+
+    scrollControlState.targetVelocity = scrollControlState.direction * gameplayScrollSpeedPxPerSec;
+    scrollControlState.currentVelocity += (scrollControlState.targetVelocity - scrollControlState.currentVelocity) * gameplayScrollLerpRate;
+
+    if (Math.abs(scrollControlState.currentVelocity) > 0.2) {
+      window.scrollBy({ top: scrollControlState.currentVelocity * dt, left: 0, behavior: "auto" });
+    }
+
+    const isMoving = Math.abs(scrollControlState.currentVelocity) > 0.2;
+    if (scrollControlState.direction !== 0 || isMoving) {
+      scrollControlState.rafId = requestAnimationFrame(stepGameplayScroll);
+      return;
+    }
+
+    scrollControlState.rafId = null;
+    scrollControlState.lastFrameAt = 0;
+  };
+
+  const setGameplayScrollDirection = (direction) => {
+    scrollControlState.direction = direction;
+    if (scrollControlState.rafId !== null) return;
+    scrollControlState.lastFrameAt = 0;
+    scrollControlState.rafId = requestAnimationFrame(stepGameplayScroll);
+  };
+
+  const bindHoldToScroll = (btn, direction) => {
+    btn.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      btn.setPointerCapture(event.pointerId);
+      setGameplayScrollDirection(direction);
+    });
+
+    const stop = () => setGameplayScrollDirection(0);
+    ["pointerup", "pointercancel", "pointerleave", "lostpointercapture"].forEach((name) => {
+      btn.addEventListener(name, stop);
+    });
+
+    btn.addEventListener("keydown", (event) => {
+      if (event.key !== " " && event.key !== "Enter") return;
+      event.preventDefault();
+      setGameplayScrollDirection(direction);
+    });
+    btn.addEventListener("keyup", (event) => {
+      if (event.key !== " " && event.key !== "Enter") return;
+      event.preventDefault();
+      stop();
+    });
+  };
+
+  bindHoldToScroll($("scroll-up-btn"), -1);
+  bindHoldToScroll($("scroll-down-btn"), 1);
 
   window.addEventListener("resize", () => {
     if (!document.body.classList.contains("landing-active")) return;
