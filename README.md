@@ -3,7 +3,7 @@
 ## Live Site
 Finance Clicker is live at [https://financeclicker.net](https://financeclicker.net).
 
-If you want to understand the project quickly, start with the live app: create an account, click to earn, buy upgrades, place long and short paper trades, and watch the leaderboard update in near real time.
+If you want to understand the project quickly, start with the live app: create an account, click to earn, buy upgrades, place long and short paper trades, and watch the leaderboard update in real time.
 
 ---
 
