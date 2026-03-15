@@ -21,6 +21,36 @@
 
 *{ box-sizing:border-box; }
 html,body{ height:100%; }
+
+html{
+  scrollbar-width: thin;
+  scrollbar-color: rgba(10, 16, 28, 0.55) rgba(8, 12, 22, 0.18);
+}
+
+*::-webkit-scrollbar{
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track{
+  background: rgba(8, 12, 22, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+*::-webkit-scrollbar-thumb{
+  background: rgba(10, 16, 28, 0.42);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+*::-webkit-scrollbar-thumb:hover{
+  background: rgba(10, 16, 28, 0.62);
+}
+
+*::-webkit-scrollbar-thumb:active{
+  background: rgba(10, 16, 28, 0.78);
+}
+
 body{
   margin:0;
   font-family: var(--sans);
