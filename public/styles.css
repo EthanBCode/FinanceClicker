@@ -400,8 +400,11 @@ canvas#bg{
 @media (max-width:520px){ .big-title{ font-size: 32px; } }
 .landing-hero .big-title{ font-size: clamp(62px, 10vw, 104px); letter-spacing: -0.01em; }
 .terminal-title{
-  display:inline-block;
+  display:block;
+  text-align:center;
   white-space: nowrap;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .mono{ font-family: var(--mono); }
