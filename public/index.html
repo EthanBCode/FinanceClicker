@@ -47,6 +47,7 @@
 
         <div class="landing-actions">
           <button class="btn landing-login-btn tilt-btn" id="login-btn">connect / login</button>
+          <button class="btn landing-login-btn tilt-btn" id="guest-play-btn">play as guest</button>
           <button class="btn secondary landing-learn-btn" id="learn-btn" type="button">how it works</button>
         </div>
 
@@ -835,6 +836,7 @@ function showLoggedIn(options = {}){
   }
 }
 function showLoggedOut(){
+  guestMode = false;
   $("logged-in").classList.add("hidden");
   $("logged-out").classList.remove("hidden");
   document.body.classList.add("landing-active");
@@ -1567,6 +1569,23 @@ function runGameplayLoader(){
     { title: "leaderboard:// hydrate", subtitle: "fetch /leaderboard", mode: "hash", commands: ["pull ranks", "normalize", "render"] },
     { title: "trade-engine:// prime", subtitle: "warm handlers", mode: "spinner", commands: ["binding inputs", "warming cache", "ready to trade"] },
   ]);
+}
+
+async function startGuestSession(){
+  if (guestSessionStarting) return;
+  guestSessionStarting = true;
+  try {
+    guestState = loadGuestState();
+    showLoggedIn({ guest: true });
+    await runGameplayLoader();
+    renderState(guestState);
+    await refreshLeaderboard();
+    setStatus(true, "guest:// progress saved in browser storage");
+    if (idleTimer) clearInterval(idleTimer);
+    idleTimer = setInterval(refreshState, guestTickMs);
+  } finally {
+    guestSessionStarting = false;
+  }
 }
 
 // ===== Title animation + candles + ticker are unchanged from your current file =====
