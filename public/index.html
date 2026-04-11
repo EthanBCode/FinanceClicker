@@ -759,7 +759,6 @@ let leaderboardTimer = null;
 let idleTimer = null;
 let guestMode = false;
 let guestState = defaultGuestState();
-let guestSessionStarting = false;
 let landingScrollLimits = { min: 0, max: 0 };
 const LANDING_SCROLL_START_OFFSET = 24;
 const LANDING_SCROLL_EDGE_PADDING = 32;
@@ -1998,7 +1997,6 @@ async function init(){
   startTicker();
 
   $("login-btn").addEventListener("click", startLogin);
-  $("guest-play-btn").addEventListener("click", startGuestSession);
   $("login-top-btn").addEventListener("click", startLogin);
   $("logout-btn").addEventListener("click", logout);
 
@@ -2150,9 +2148,14 @@ async function init(){
     if (idleTimer) clearInterval(idleTimer);
     idleTimer = setInterval(refreshState, idleTickMs);
   } else {
-    showLoggedOut();
-    await runLandingLoader();
-    startTitleAnimationIfNeeded();
+    guestState = loadGuestState();
+    showLoggedIn({ guest: true });
+    await runGameplayLoader();
+    renderState(guestState);
+    await refreshLeaderboard();
+    setStatus(true, "guest:// progress saved in browser storage");
+    if (idleTimer) clearInterval(idleTimer);
+    idleTimer = setInterval(refreshState, guestTickMs);
   }
 
   document.body.classList.remove("booting");
