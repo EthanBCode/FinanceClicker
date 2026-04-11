@@ -29,6 +29,7 @@
           <span id="env-text">disconnected</span>
         </div>
         <button class="btn" id="login-top-btn">connect / login</button>
+        <button class="btn" id="guest-top-btn">play as guest</button>
         <button class="btn danger hidden" id="logout-btn">logout</button>
       </div>
     </div>
@@ -809,6 +810,7 @@ function setEnv(connected, isGuest = false){
   $("dot").style.background = connected ? "rgba(55,242,161,0.95)" : "rgba(55,242,161,0.30)";
   $("logout-btn").classList.toggle("hidden", !connected);
   $("login-top-btn").classList.toggle("hidden", connected);
+  $("guest-top-btn").classList.toggle("hidden", connected);
 }
 function setStatus(ok, msg){
   const el = $("api-status");
@@ -1535,8 +1537,7 @@ function animateWindow(win, durationMs){
   loaderTimers.add(timer);
 }
 
-function runTerminalLoader(loaderId, desktopId, windowsConfig){
-  const loaderDurationMs = 4000;
+function runTerminalLoader(loaderId, desktopId, windowsConfig, loaderDurationMs){
   clearLoaderTimers();
   hideLoader("landing-loader");
   hideLoader("gameplay-loader");
@@ -1560,7 +1561,7 @@ function runLandingLoader(){
     { title: "installer:// deps", subtitle: "node_modules sync", mode: "hash", commands: ["resolve", "download", "verify", "link", "ready"] },
     { title: "runtime:// boot", subtitle: "start app", mode: "spinner", commands: ["checking runtime", "loading auth", "mounting ui", "loading market feed", "connected"] },
     { title: "assets:// preload", subtitle: "hydrate terminal ui", mode: "rect", commands: ["load fonts", "restore layout", "cache icons", "ready"] },
-  ]);
+  ], 2000);
 }
 
 function runGameplayLoader(){
@@ -1568,7 +1569,7 @@ function runGameplayLoader(){
     { title: "state:// sync", subtitle: "fetch /state", mode: "rect", commands: ["request", "apply diff", "complete"] },
     { title: "leaderboard:// hydrate", subtitle: "fetch /leaderboard", mode: "hash", commands: ["pull ranks", "normalize", "render"] },
     { title: "trade-engine:// prime", subtitle: "warm handlers", mode: "spinner", commands: ["binding inputs", "warming cache", "ready to trade"] },
-  ]);
+  ], 2500);
 }
 
 async function startGuestSession(){
@@ -1576,8 +1577,8 @@ async function startGuestSession(){
   guestSessionStarting = true;
   try {
     guestState = loadGuestState();
-    showLoggedIn({ guest: true });
     await runGameplayLoader();
+    showLoggedIn({ guest: true });
     renderState(guestState);
     await refreshLeaderboard();
     setStatus(true, "guest:// progress saved in browser storage");
@@ -1998,6 +1999,8 @@ async function init(){
 
   $("login-btn").addEventListener("click", startLogin);
   $("login-top-btn").addEventListener("click", startLogin);
+  $("guest-play-btn").addEventListener("click", startGuestSession);
+  $("guest-top-btn").addEventListener("click", startGuestSession);
   $("logout-btn").addEventListener("click", logout);
 
   $("leaderboard-body").addEventListener("click", (e)=>{
@@ -2110,6 +2113,7 @@ async function init(){
   if (params.error){
     showLoggedOut();
     await runLandingLoader();
+    document.body.classList.remove("booting");
     startTitleAnimationIfNeeded();
     $("login-help").classList.add("err");
     $("login-help").textContent = "login:// error: " + (params.error_description || params.error);
@@ -2135,8 +2139,9 @@ async function init(){
   }
 
   if (storage.idToken || storage.accessToken){
-    showLoggedIn({ guest: false });
     await runGameplayLoader();
+    showLoggedIn({ guest: false });
+    document.body.classList.remove("booting");
     setStatus(true, "state:// syncing…");
     await refreshState();
     await refreshLeaderboard();
@@ -2148,14 +2153,10 @@ async function init(){
     if (idleTimer) clearInterval(idleTimer);
     idleTimer = setInterval(refreshState, idleTickMs);
   } else {
-    guestState = loadGuestState();
-    showLoggedIn({ guest: true });
-    await runGameplayLoader();
-    renderState(guestState);
-    await refreshLeaderboard();
-    setStatus(true, "guest:// progress saved in browser storage");
-    if (idleTimer) clearInterval(idleTimer);
-    idleTimer = setInterval(refreshState, guestTickMs);
+    showLoggedOut();
+    await runLandingLoader();
+    document.body.classList.remove("booting");
+    startTitleAnimationIfNeeded();
   }
 
   document.body.classList.remove("booting");
