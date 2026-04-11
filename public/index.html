@@ -768,6 +768,7 @@ let leaderboardVisibleCount = 10;
 const leaderboardStep = 10;
 let activeTradeAudio = null;
 const leaderboardMax = 50;
+let guestSessionStarting = false;
 
 function clampLandingScrollPosition(){
   if (!document.body.classList.contains("landing-active")) return;
@@ -1584,6 +1585,8 @@ async function startGuestSession(){
     setStatus(true, "guest:// progress saved in browser storage");
     if (idleTimer) clearInterval(idleTimer);
     idleTimer = setInterval(refreshState, guestTickMs);
+  } catch (e) {
+    setStatus(false, "guest:// failed: " + (e?.message || "unknown error"));
   } finally {
     guestSessionStarting = false;
   }
