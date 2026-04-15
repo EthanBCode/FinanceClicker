@@ -449,7 +449,8 @@ const endpoints = { click:"/click", state:"/state", buy:"/buy", trade:"/trade", 
 const leaderboardPollMs = 4000;
 const idleTickMs = 1200;
 const guestTickMs = 250;
-const GUEST_SAVE_KEY = "finance_clicker_guest_v1";
+const GUEST_SAVE_KEY = "finance_clicker_guest_v2";
+const AUTH_STATE_CACHE_KEY = "finance_clicker_auth_cache_v1";
 
 const UPGRADES = {
   cursor:      { baseCost: 10,       growth: 1.15, ppcAdd: 1, ppsAdd: 0  },
@@ -496,19 +497,6 @@ function clamp(v, a, b){
   return Math.max(a, Math.min(b, v));
 }
 
-function setCookie(name, value, days = 365){
-  const expiry = new Date(Date.now() + days * 86400000).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expiry}; path=/; SameSite=Lax`;
-}
-function getCookie(name){
-  const needle = `${name}=`;
-  const parts = document.cookie.split(";").map((x) => x.trim());
-  for (const part of parts){
-    if (part.startsWith(needle)) return decodeURIComponent(part.slice(needle.length));
-  }
-  return null;
-}
-
 function defaultGuestState(){
   const now = Date.now();
   return {
@@ -523,9 +511,12 @@ function defaultGuestState(){
     shortPosition: null,
   };
 }
+function clearAuthStateCache(){
+  try { localStorage.removeItem(AUTH_STATE_CACHE_KEY); } catch {}
+}
 function loadGuestState(){
   try {
-    const raw = localStorage.getItem(GUEST_SAVE_KEY) || getCookie(GUEST_SAVE_KEY);
+    const raw = localStorage.getItem(GUEST_SAVE_KEY);
     if (!raw) return defaultGuestState();
     const parsed = JSON.parse(raw);
     const base = defaultGuestState();
@@ -557,7 +548,18 @@ function saveGuestState(state){
   };
   const raw = JSON.stringify(compact);
   localStorage.setItem(GUEST_SAVE_KEY, raw);
-  setCookie(GUEST_SAVE_KEY, raw, 365);
+}
+function cacheAuthState(state){
+  try {
+    const compact = {
+      name: String(state?.name ?? ""),
+      money: Number(state?.money ?? 0),
+      ppc: Number(state?.ppc ?? 1),
+      pps: Number(state?.pps ?? 0),
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(AUTH_STATE_CACHE_KEY, JSON.stringify(compact));
+  } catch {}
 }
 
 function hashString(str) {
@@ -618,6 +620,28 @@ function advancePosition(position, userId, now, side) {
     currentPrice,
     currentValue,
     feeRate: side === "short" ? SHORT_FEE_RATE : LONG_FEE_RATE,
+  };
+}
+function buildPositionView(position, userId, now, side){
+  const p = advancePosition(position, userId, now, side);
+  if (!p) return null;
+
+  const amount = round2(p.amount);
+  const currentValue = round2(p.currentValue);
+  return {
+    side,
+    symbol: p.symbol,
+    amount,
+    principal: round2(p.principal),
+    feePaid: round2(p.feePaid ?? 0),
+    feeRate: p.feeRate,
+    entryPrice: round2(p.entryPrice),
+    currentPrice: round2(p.currentPrice),
+    lastMovePct: Number((Number(p.lastMove ?? 0) * 100).toFixed(2)),
+    pctDelta: Number((Number(p.pctDelta ?? 0) * 100).toFixed(2)),
+    currentValue,
+    unrealized: round2(currentValue - amount),
+    openedAt: p.openedAt,
   };
 }
 
@@ -722,6 +746,7 @@ async function exchangeCodeForTokens(code) {
 }
 
 function logout() {
+  clearAuthStateCache();
   storage.clear();
   const url = new URL(cognito.domain + "/logout");
   url.searchParams.set("client_id", cognito.clientId);
@@ -898,11 +923,6 @@ function renderLeaderboard(items){
 }
 
 function getPositionMetrics(p){
-  const toDisplayPercent = (value) => {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return 0;
-    return Math.abs(n) <= 1 ? n * 100 : n;
-  };
 
   if (!p) {
     return {
@@ -912,23 +932,18 @@ function getPositionMetrics(p){
     };
   }
 
-  const principal = Number(p.principal ?? 0);
+  const grossAmount = Number(p.amount ?? p.invested ?? 0);
   const currentValue = Number(p.currentValue ?? 0);
-  const unrealizedFromValue = currentValue - principal;
+  const unrealizedFromValue = currentValue - grossAmount;
   const unrealized = Number.isFinite(Number(p.unrealized))
     ? Number(p.unrealized)
     : unrealizedFromValue;
 
-  const pnlPctFromValue = principal > 0 ? (unrealized / principal) * 100 : 0;
-  const pnlPct = Number.isFinite(Number(p.pnlPct))
-    ? toDisplayPercent(p.pnlPct)
-    : (Number.isFinite(Number(p.pctDelta))
-      ? toDisplayPercent(p.pctDelta)
-      : pnlPctFromValue);
-
+  const pnlPctFromValue = grossAmount > 0 ? (unrealized / grossAmount) * 100 : 0;
+  const pnlPct = Number.isFinite(pnlPctFromValue) ? pnlPctFromValue : 0;
   const lastTickPct = Number.isFinite(Number(p.lastMovePct))
-    ? toDisplayPercent(p.lastMovePct)
-    : toDisplayPercent(p.lastMove ?? 0);
+    ? Number(p.lastMovePct)
+    : (Number.isFinite(Number(p.lastMove)) ? Number(p.lastMove) * 100 : 0);
 
   return {
     lastTickPct,
@@ -1032,6 +1047,14 @@ function applyGuestIdleTick(){
   guestState.longPosition = advancePosition(guestState.longPosition, "guest-local", now, "long");
   guestState.shortPosition = advancePosition(guestState.shortPosition, "guest-local", now, "short");
 }
+function guestRenderableState(){
+  const now = Date.now();
+  return {
+    ...guestState,
+    longPosition: buildPositionView(guestState.longPosition, "guest-local", now, "long"),
+    shortPosition: buildPositionView(guestState.shortPosition, "guest-local", now, "short"),
+  };
+}
 
 async function refreshLeaderboard(){
   if (guestMode) {
@@ -1055,12 +1078,13 @@ async function refreshState(){
   if (guestMode) {
     applyGuestIdleTick();
     saveGuestState(guestState);
-    renderState(guestState);
+    renderState(guestRenderableState());
     setStatus(true, "guest:// running locally");
     return;
   }
   try{
     const state = await getState();
+    cacheAuthState(state);
     renderState(state);
   }catch(e){
     setStatus(false, "state:// error: " + e.message);
@@ -1080,10 +1104,11 @@ async function doClick(){
       guestState.moneyPrecise = Number(guestState.moneyPrecise ?? guestState.money ?? 0) + Number(guestState.ppc ?? 1);
       guestState.money = round2(guestState.moneyPrecise);
       saveGuestState(guestState);
-      renderState(guestState);
+      renderState(guestRenderableState());
       setStatus(true, `trade:// ok (guest +${guestState.ppc ?? 1})`);
     } else {
       const state = await clickOnce();
+      cacheAuthState(state);
       renderState(state);
       setStatus(true, `trade:// ok (idle +${state?.gained?.idle ?? 0}, click +${state?.gained?.click ?? 1})`);
       await refreshLeaderboard();
@@ -1114,13 +1139,14 @@ async function doBuy(upgradeId){
     guestState.ppc = Number(guestState.ppc ?? 1) + UPGRADES[upgradeId].ppcAdd;
     guestState.pps = Number(guestState.pps ?? 0) + UPGRADES[upgradeId].ppsAdd;
     saveGuestState(guestState);
-    renderState(guestState);
+    renderState(guestRenderableState());
     setStatus(true, `buy://${upgradeId} ok (guest)`);
     return;
   }
   try{
     setStatus(true, `buy://${upgradeId} pending…`);
     const state = await buyUpgrade(upgradeId);
+    cacheAuthState(state);
     renderState(state);
     setStatus(true, `buy://${upgradeId} ok`);
     await refreshLeaderboard();
@@ -1164,7 +1190,7 @@ async function doTrade(side, action){
       guestState.moneyPrecise = Number(guestState.moneyPrecise ?? guestState.money ?? 0) - amount;
       guestState.money = round2(guestState.moneyPrecise);
       saveGuestState(guestState);
-      renderState(guestState);
+      renderState(guestRenderableState());
       setStatus(true, `trade://${side}/buy ok (guest)`);
       return;
     }
@@ -1174,7 +1200,7 @@ async function doTrade(side, action){
     guestState.money = round2(guestState.moneyPrecise);
     guestState[posKey] = null;
     saveGuestState(guestState);
-    renderState(guestState);
+    renderState(guestRenderableState());
     setStatus(true, `trade://${side}/sell ok (guest)`);
     return;
   }
@@ -1189,6 +1215,7 @@ async function doTrade(side, action){
 
     setStatus(true, `trade://${side}/${action} pending…`);
     const state = await tradePosition(side, action, action === "buy" ? amount : null);
+    cacheAuthState(state);
     renderState(state);
     setStatus(true, `trade://${side}/${action} ok`);
     await refreshLeaderboard();
@@ -1623,7 +1650,7 @@ async function startGuestSession(){
     guestState = loadGuestState();
     await runGameplayLoader();
     showLoggedIn({ guest: true });
-    renderState(guestState);
+    renderState(guestRenderableState());
     await refreshLeaderboard();
     setStatus(true, "guest:// progress saved in browser storage");
     if (idleTimer) clearInterval(idleTimer);
