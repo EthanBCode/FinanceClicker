@@ -897,7 +897,48 @@ function renderLeaderboard(items){
   $("leaderboard-body").innerHTML = rows + controls;
 }
 
+function getPositionMetrics(p){
+  const toDisplayPercent = (value) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 0;
+    return Math.abs(n) <= 1 ? n * 100 : n;
+  };
+
+  if (!p) {
+    return {
+      lastTickPct: 0,
+      pnlPct: 0,
+      unrealized: 0,
+    };
+  }
+
+  const principal = Number(p.principal ?? 0);
+  const currentValue = Number(p.currentValue ?? 0);
+  const unrealizedFromValue = currentValue - principal;
+  const unrealized = Number.isFinite(Number(p.unrealized))
+    ? Number(p.unrealized)
+    : unrealizedFromValue;
+
+  const pnlPctFromValue = principal > 0 ? (unrealized / principal) * 100 : 0;
+  const pnlPct = Number.isFinite(Number(p.pnlPct))
+    ? toDisplayPercent(p.pnlPct)
+    : (Number.isFinite(Number(p.pctDelta))
+      ? toDisplayPercent(p.pctDelta)
+      : pnlPctFromValue);
+
+  const lastTickPct = Number.isFinite(Number(p.lastMovePct))
+    ? toDisplayPercent(p.lastMovePct)
+    : toDisplayPercent(p.lastMove ?? 0);
+
+  return {
+    lastTickPct,
+    pnlPct,
+    unrealized,
+  };
+}
+
 function renderLongPosition(p){
+  const metrics = getPositionMetrics(p);
   $("long-symbol").textContent = p?.symbol || "—";
   $("long-invested").textContent = formatMoney(p?.amount ?? 0);
   $("long-current").textContent = formatMoney(p?.currentValue ?? 0);
@@ -915,15 +956,16 @@ function renderLongPosition(p){
     $("long-status").textContent = "No open long position.";
     return;
   }
-  lastTickEl.className = pctClass(p.lastMovePct);
-  lastTickEl.textContent = formatPct(p.lastMovePct);
+  lastTickEl.className = pctClass(metrics.lastTickPct);
+  lastTickEl.textContent = formatPct(metrics.lastTickPct);
 
-  $("long-pnl").textContent = `${formatPct(p.pctDelta)} / ${formatMoney(p.unrealized)}`;
+  $("long-pnl").textContent = `${formatPct(metrics.pnlPct)} / ${formatMoney(metrics.unrealized)}`;
   $("long-sell-btn").disabled = false;
   $("long-status").textContent = "Long: profit when price rises. Moves every 3 seconds.";
 }
 
 function renderShortPosition(p){
+  const metrics = getPositionMetrics(p);
   $("short-symbol").textContent = p?.symbol || "—";
   $("short-invested").textContent = formatMoney(p?.amount ?? 0);
   $("short-current").textContent = formatMoney(p?.currentValue ?? 0);
@@ -941,10 +983,10 @@ function renderShortPosition(p){
     $("short-status").textContent = "No open short position.";
     return;
   }
-  lastTickEl.className = pctClass(p.lastMovePct);
-  lastTickEl.textContent = formatPct(p.lastMovePct);
+  lastTickEl.className = pctClass(metrics.lastTickPct);
+  lastTickEl.textContent = formatPct(metrics.lastTickPct);
 
-  $("short-pnl").textContent = `${formatPct(p.pctDelta)} / ${formatMoney(p.unrealized)}`;
+  $("short-pnl").textContent = `${formatPct(metrics.pnlPct)} / ${formatMoney(metrics.unrealized)}`;
   $("short-sell-btn").disabled = false;
   $("short-status").textContent = "Short: profit when price falls. Uncapped risk.";
 }
@@ -1118,6 +1160,7 @@ async function doTrade(side, action){
         openedAt: now,
         lastStep: Math.floor(now / STEP_MS),
       };
+      guestState[posKey] = advancePosition(guestState[posKey], "guest-local", now, side);
       guestState.moneyPrecise = Number(guestState.moneyPrecise ?? guestState.money ?? 0) - amount;
       guestState.money = round2(guestState.moneyPrecise);
       saveGuestState(guestState);
