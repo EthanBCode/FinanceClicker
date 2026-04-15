@@ -336,11 +336,11 @@ canvas#bg{
   letter-spacing: 0.03em;
   text-transform: uppercase;
   border-width: 2px;
-  background: rgba(14, 18, 30, 0.62);
-  border-color: rgba(165, 255, 221, 0.42);
+  background: rgba(55,242,161,0.16);
+  border-color: rgba(55,242,161,0.40);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
-  box-shadow: 0 22px 40px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.12);
+  box-shadow: 0 22px 40px rgba(0,0,0,0.55), 0 0 26px rgba(55,242,161,0.10), inset 0 0 0 1px rgba(255,255,255,0.12);
 }
 .landing-learn-btn{
   min-width: min(78vw, 380px);
