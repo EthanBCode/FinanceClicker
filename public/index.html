@@ -52,9 +52,7 @@
           <button class="btn secondary landing-learn-btn" id="learn-btn" type="button">how it works</button>
         </div>
 
-        <div class="status" id="login-help" style="margin-top:18px;">
-          Tip: build stable passive income first, then use trades to accelerate your lead.
-        </div>
+        <div class="status hidden" id="login-help" style="margin-top:18px;"></div>
       </div>
     </section>
 
@@ -448,7 +446,8 @@ const endpoints = { click:"/click", state:"/state", buy:"/buy", trade:"/trade", 
 
 const leaderboardPollMs = 4000;
 const idleTickMs = 1200;
-const guestTickMs = 250;
+const guestTickMs = 50;
+const guestSaveIntervalMs = 5000;
 const GUEST_SAVE_KEY = "finance_clicker_guest_v2";
 const AUTH_STATE_CACHE_KEY = "finance_clicker_auth_cache_v1";
 
@@ -783,8 +782,10 @@ const getLeaderboard = () => apiFetch(endpoints.leaderboard, { method: "GET" });
 // ===== UI glue =====
 let leaderboardTimer = null;
 let idleTimer = null;
+let guestPersistTimer = null;
 let guestMode = false;
 let guestState = defaultGuestState();
+let guestNeedsSave = false;
 let landingScrollLimits = { min: 0, max: 0 };
 const LANDING_SCROLL_START_OFFSET = 24;
 const LANDING_SCROLL_EDGE_PADDING = 32;
@@ -857,6 +858,7 @@ function showLoggedIn(options = {}){
   $("gameplay-scroll-nav").classList.remove("hidden");
   setEnv(!isGuest, isGuest);
   $("lb-pill").textContent = isGuest ? "locked" : "—";
+  $("refresh-btn").textContent = isGuest ? "save" : "refresh";
   $("lb-status").classList.toggle("err", isGuest);
   if (isGuest) {
     $("lb-status").textContent = "leaderboard:// login required to submit scores";
@@ -864,6 +866,8 @@ function showLoggedIn(options = {}){
   }
 }
 function showLoggedOut(){
+  persistGuestState({ force: true });
+  stopGuestTimers();
   guestMode = false;
   $("logged-in").classList.add("hidden");
   $("logged-out").classList.remove("hidden");
@@ -874,6 +878,7 @@ function showLoggedOut(){
   leaderboardVisibleCount = 10;
   leaderboardItems = [];
   $("leaderboard-body").innerHTML = `<tr><td colspan="3" class="muted">Sign in to load the leaderboard.</td></tr>`;
+  $("refresh-btn").textContent = "refresh";
 }
 function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[c]));
@@ -1047,6 +1052,38 @@ function applyGuestIdleTick(){
   guestState.longPosition = advancePosition(guestState.longPosition, "guest-local", now, "long");
   guestState.shortPosition = advancePosition(guestState.shortPosition, "guest-local", now, "short");
 }
+function markGuestDirty(){
+  guestNeedsSave = true;
+}
+function persistGuestState(options = {}){
+  const force = Boolean(options.force);
+  if (!guestMode) return false;
+  if (!force && !guestNeedsSave) return false;
+  saveGuestState(guestState);
+  guestNeedsSave = false;
+  return true;
+}
+function stopGuestTimers(){
+  if (idleTimer) {
+    clearInterval(idleTimer);
+    idleTimer = null;
+  }
+  if (guestPersistTimer) {
+    clearInterval(guestPersistTimer);
+    guestPersistTimer = null;
+  }
+}
+function startGuestTimers(){
+  stopGuestTimers();
+  idleTimer = setInterval(() => {
+    if (!guestMode) return;
+    applyGuestIdleTick();
+    renderState(guestRenderableState());
+  }, guestTickMs);
+  guestPersistTimer = setInterval(() => {
+    persistGuestState();
+  }, guestSaveIntervalMs);
+}
 function guestRenderableState(){
   const now = Date.now();
   return {
@@ -1077,7 +1114,6 @@ async function refreshLeaderboard(){
 async function refreshState(){
   if (guestMode) {
     applyGuestIdleTick();
-    saveGuestState(guestState);
     renderState(guestRenderableState());
     setStatus(true, "guest:// running locally");
     return;
@@ -1093,26 +1129,27 @@ async function refreshState(){
 
 async function doClick(){
   const tradeBtn = $("click-btn");
+  if (guestMode) {
+    playTradeBeep();
+    applyGuestIdleTick();
+    guestState.moneyPrecise = Number(guestState.moneyPrecise ?? guestState.money ?? 0) + Number(guestState.ppc ?? 1);
+    guestState.money = round2(guestState.moneyPrecise);
+    markGuestDirty();
+    renderState(guestRenderableState());
+    setStatus(true, `trade:// ok (guest +${guestState.ppc ?? 1})`);
+    return;
+  }
   const keyboardTriggered = !tradeBtn.matches(":active");
   try{
     tradeBtn.disabled = true;
     if (keyboardTriggered) tradeBtn.classList.add("btn-pressed");
     playTradeBeep();
     setStatus(true, "trade:// executing…");
-    if (guestMode) {
-      applyGuestIdleTick();
-      guestState.moneyPrecise = Number(guestState.moneyPrecise ?? guestState.money ?? 0) + Number(guestState.ppc ?? 1);
-      guestState.money = round2(guestState.moneyPrecise);
-      saveGuestState(guestState);
-      renderState(guestRenderableState());
-      setStatus(true, `trade:// ok (guest +${guestState.ppc ?? 1})`);
-    } else {
-      const state = await clickOnce();
-      cacheAuthState(state);
-      renderState(state);
-      setStatus(true, `trade:// ok (idle +${state?.gained?.idle ?? 0}, click +${state?.gained?.click ?? 1})`);
-      await refreshLeaderboard();
-    }
+    const state = await clickOnce();
+    cacheAuthState(state);
+    renderState(state);
+    setStatus(true, `trade:// ok (idle +${state?.gained?.idle ?? 0}, click +${state?.gained?.click ?? 1})`);
+    await refreshLeaderboard();
   }catch(e){
     setStatus(false, "trade:// failed: " + e.message);
   }finally{
@@ -1138,7 +1175,7 @@ async function doBuy(upgradeId){
     guestState.money = round2(guestState.moneyPrecise);
     guestState.ppc = Number(guestState.ppc ?? 1) + UPGRADES[upgradeId].ppcAdd;
     guestState.pps = Number(guestState.pps ?? 0) + UPGRADES[upgradeId].ppsAdd;
-    saveGuestState(guestState);
+    markGuestDirty();
     renderState(guestRenderableState());
     setStatus(true, `buy://${upgradeId} ok (guest)`);
     return;
@@ -1189,7 +1226,7 @@ async function doTrade(side, action){
       guestState[posKey] = advancePosition(guestState[posKey], "guest-local", now, side);
       guestState.moneyPrecise = Number(guestState.moneyPrecise ?? guestState.money ?? 0) - amount;
       guestState.money = round2(guestState.moneyPrecise);
-      saveGuestState(guestState);
+      markGuestDirty();
       renderState(guestRenderableState());
       setStatus(true, `trade://${side}/buy ok (guest)`);
       return;
@@ -1199,7 +1236,7 @@ async function doTrade(side, action){
     guestState.moneyPrecise = Number(guestState.moneyPrecise ?? guestState.money ?? 0) + Number(position.currentValue ?? 0);
     guestState.money = round2(guestState.moneyPrecise);
     guestState[posKey] = null;
-    saveGuestState(guestState);
+    markGuestDirty();
     renderState(guestRenderableState());
     setStatus(true, `trade://${side}/sell ok (guest)`);
     return;
@@ -1653,8 +1690,7 @@ async function startGuestSession(){
     renderState(guestRenderableState());
     await refreshLeaderboard();
     setStatus(true, "guest:// progress saved in browser storage");
-    if (idleTimer) clearInterval(idleTimer);
-    idleTimer = setInterval(refreshState, guestTickMs);
+    startGuestTimers();
   } catch (e) {
     setStatus(false, "guest:// failed: " + (e?.message || "unknown error"));
   } finally {
@@ -2084,6 +2120,14 @@ async function init(){
   });
 
   $("refresh-btn").addEventListener("click", async () => {
+    if (guestMode) {
+      applyGuestIdleTick();
+      const saved = persistGuestState({ force: true });
+      renderState(guestRenderableState());
+      setStatus(true, saved ? "guest:// saved locally" : "guest:// already up to date");
+      await refreshLeaderboard();
+      return;
+    }
     setStatus(true, "state:// refreshing…");
     await refreshState();
     await refreshLeaderboard();
@@ -2188,6 +2232,7 @@ async function init(){
     await runLandingLoader();
     document.body.classList.remove("booting");
     startTitleAnimationIfNeeded();
+    $("login-help").classList.remove("hidden");
     $("login-help").classList.add("err");
     $("login-help").textContent = "login:// error: " + (params.error_description || params.error);
     cleanUrl();
@@ -2203,6 +2248,7 @@ async function init(){
       showLoggedOut();
       await runLandingLoader();
       startTitleAnimationIfNeeded();
+      $("login-help").classList.remove("hidden");
       $("login-help").classList.add("err");
       $("login-help").textContent = "login:// failed: " + e.message;
       cleanUrl();
@@ -2212,6 +2258,7 @@ async function init(){
   }
 
   if (storage.idToken || storage.accessToken){
+    stopGuestTimers();
     await runGameplayLoader();
     showLoggedIn({ guest: false });
     document.body.classList.remove("booting");
@@ -2226,6 +2273,7 @@ async function init(){
     if (idleTimer) clearInterval(idleTimer);
     idleTimer = setInterval(refreshState, idleTickMs);
   } else {
+    stopGuestTimers();
     showLoggedOut();
     await runLandingLoader();
     document.body.classList.remove("booting");
@@ -2234,6 +2282,12 @@ async function init(){
 
   document.body.classList.remove("booting");
 }
+
+window.addEventListener("beforeunload", () => {
+  if (!guestMode) return;
+  applyGuestIdleTick();
+  persistGuestState({ force: true });
+});
 
 init();
 </script>
